@@ -50,7 +50,7 @@ export default function SettingsPageClient() {
             clock_format: "24hr",
             focus_duration: 25,
             break_duration: 5,
-            quote_style: "motivational",
+            quote_style: "theology",
             custom_quotes: null,
             show_memento_widget: false,
             theme: "photo",

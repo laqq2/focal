@@ -7,6 +7,14 @@ import { SoundsPanel } from "@/components/SoundsPanel";
 
 type Tab = "focus" | "break";
 
+/** Live state for dashboard hero when showing the focus timer. */
+export type FocusHeroTelemetry = {
+  open: boolean;
+  tab: Tab;
+  remainingSec: number;
+  running: boolean;
+};
+
 export interface FocusSessionEndPayload {
   plannedMinutes: number;
   actualMinutes: number;
@@ -18,6 +26,8 @@ export interface FocusSessionEndPayload {
 }
 
 interface Props {
+  /** `modal` = full-screen overlay; `inline` = embedded in dashboard (state persists when hidden). */
+  variant?: "modal" | "inline";
   open: boolean;
   onClose: () => void;
   defaultFocusMinutes: number;
@@ -25,6 +35,7 @@ interface Props {
   onSessionEnd: (payload: FocusSessionEndPayload) => void;
   onRunningChange?: (running: boolean) => void;
   onOpenHistory?: () => void;
+  onHeroTelemetry?: (state: FocusHeroTelemetry) => void;
 }
 
 const engineSingleton = typeof window !== "undefined" ? new FocalAudioEngine() : null;
@@ -47,6 +58,7 @@ function playChime(ctx: AudioContext) {
 }
 
 export function FocusOverlay({
+  variant = "modal",
   open,
   onClose,
   defaultFocusMinutes,
@@ -54,7 +66,9 @@ export function FocusOverlay({
   onSessionEnd,
   onRunningChange,
   onOpenHistory,
+  onHeroTelemetry,
 }: Props) {
+  const isModal = variant === "modal";
   const [tab, setTab] = useState<Tab>("focus");
   const [focusLen, setFocusLen] = useState(defaultFocusMinutes);
   const [breakLen, setBreakLen] = useState(defaultBreakMinutes);
@@ -84,11 +98,12 @@ export function FocusOverlay({
   }, [running, onRunningChange]);
 
   useEffect(() => {
-    if (!open) onRunningChange?.(false);
-  }, [open, onRunningChange]);
+    if (!open && isModal) onRunningChange?.(false);
+  }, [open, isModal, onRunningChange]);
 
   useEffect(() => {
     if (!open) return;
+    if (!isModal) return;
     setTab("focus");
     setFocusLen(defaultFocusMinutes);
     setBreakLen(defaultBreakMinutes);
@@ -101,10 +116,11 @@ export function FocusOverlay({
     setDistractions([]);
     setDistractionDraft("");
     setIntent("");
-  }, [open, defaultFocusMinutes, defaultBreakMinutes]);
+  }, [open, isModal, defaultFocusMinutes, defaultBreakMinutes]);
 
   useEffect(() => {
     if (!open) return;
+    if (!isModal && running) return;
     baseRemainingRef.current = plannedSeconds;
     setRemaining(plannedSeconds);
     setRunning(false);
@@ -114,7 +130,7 @@ export function FocusOverlay({
       focusSessionStartedAtIso.current = null;
       setDistractions([]);
     }
-  }, [tab, plannedSeconds, open]);
+  }, [tab, plannedSeconds, open, isModal, running]);
 
   const intentRef = useRef(intent);
   const distrRef = useRef(distractions);
@@ -238,12 +254,17 @@ export function FocusOverlay({
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }, [remaining]);
 
-  if (!open) return null;
+  useEffect(() => {
+    onHeroTelemetry?.({
+      open,
+      tab,
+      remainingSec: Math.max(0, Math.ceil(remaining)),
+      running,
+    });
+  }, [open, tab, remaining, running, onHeroTelemetry]);
 
-  return (
-    <div className="focal-focus-overlay">
-      <div className="focal-focus-scrim" onClick={onClose} />
-      <div className="focal-focus-shell focal-panel">
+  const shell = (
+      <div className={`focal-focus-shell focal-panel ${isModal ? "" : "focal-focus-shell--inline"}`}>
         <div className="focal-focus-toprow">
           <div className="focal-focus-tabs">
             <button type="button" className={tab === "focus" ? "active" : ""} disabled={running} onClick={() => setTab("focus")}>
@@ -405,12 +426,30 @@ export function FocusOverlay({
               </button>
             ) : null}
             <button className="focal-glass-btn subtle" type="button" onClick={onClose}>
-              Close
+              {isModal ? "Close" : "Leave"}
             </button>
           </div>
         </div>
       </div>
-      <SoundsPanel open={soundsOpen} onClose={() => setSoundsOpen(false)} engine={engineSingleton} />
+  );
+
+  const sounds = <SoundsPanel open={soundsOpen} onClose={() => setSoundsOpen(false)} engine={engineSingleton} />;
+
+  if (isModal) {
+    if (!open) return null;
+    return (
+      <div className="focal-focus-overlay">
+        <div className="focal-focus-scrim" onClick={onClose} />
+        {shell}
+        {sounds}
+      </div>
+    );
+  }
+
+  return (
+    <div className="focal-focus-embedded" hidden={!open}>
+      {shell}
+      {sounds}
     </div>
   );
 }

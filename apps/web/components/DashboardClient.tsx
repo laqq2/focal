@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import {
   BLOCKER_PRESETS,
+  computeMementoStats,
   formatGreetingLine,
   pickDailyQuote,
   type BlockedSiteRow,
@@ -37,27 +38,40 @@ import {
   subscribeGoals,
   todayIsoLocal,
 } from "@/lib/sync";
-import { fetchMelbourneWeather, fetchWeatherByCoords, type WeatherState } from "@/lib/weather";
 import { fetchTodayEvents, type CalendarEventItem } from "@/lib/calendar";
 import { authLoginPageUrl, authRedirectToApp } from "@/lib/auth-origin";
 import { signInWithGoogleOAuth } from "@/lib/google-oauth";
 import { FocusOverlay, type FocusSessionEndPayload } from "@/components/FocusOverlay";
-import { HomeMementoCard } from "@/components/HomeMementoCard";
 import { TasksDock } from "@/components/TasksDock";
 import { DashboardSettingsPanel } from "@/components/DashboardSettingsPanel";
 
-const LINKS_KEY = "focal_links_v1";
+const MAIN_TAB_KEY = "focal_obs_main_tab";
+type MainTab = "focus" | "archive" | "wisdom";
 
-type LinkItem = { label: string; url: string };
-
-function readLinks(): LinkItem[] {
+function readMainTab(): MainTab {
   try {
-    const raw = localStorage.getItem(LINKS_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as LinkItem[];
+    const v = localStorage.getItem(MAIN_TAB_KEY);
+    if (v === "focus" || v === "archive" || v === "wisdom") return v;
   } catch {
-    return [];
+    /* ignore */
   }
+  return "wisdom";
+}
+
+function splitQuoteAttribution(text: string): { body: string; author: string | null } {
+  const em = text.lastIndexOf("—");
+  if (em >= 0) {
+    const body = text.slice(0, em).trim();
+    const author = text.slice(em + 1).trim() || null;
+    return { body: body || text, author };
+  }
+  const en = text.lastIndexOf("–");
+  if (en >= 0) {
+    const body = text.slice(0, en).trim();
+    const author = text.slice(en + 1).trim() || null;
+    return { body: body || text, author };
+  }
+  return { body: text, author: null };
 }
 
 function formatClock(date: Date, format: ClockFormat) {
@@ -79,7 +93,7 @@ function defaultProfile(userId: string): ProfileRow {
     clock_format: "24hr",
     focus_duration: 25,
     break_duration: 5,
-    quote_style: "motivational",
+    quote_style: "theology",
     custom_quotes: null,
     show_memento_widget: false,
     theme: "photo",
@@ -106,15 +120,12 @@ export default function DashboardClient() {
   const [blocked, setBlocked] = useState<BlockedSiteRow[]>([]);
   const [blockerActive, setBlockerActive] = useState(false);
   const [memento, setMemento] = useState<MementoEntryRow[]>([]);
-  const [weather, setWeather] = useState<WeatherState | null>(null);
   const [bgBroken, setBgBroken] = useState(false);
 
-  const [panel, setPanel] = useState<"none" | "blocker" | "calendar" | "links" | "focusHistory" | "settings">("none");
-  const [focusOpen, setFocusOpen] = useState(false);
+  const [panel, setPanel] = useState<"none" | "calendar" | "settings">("none");
+  const [mainTab, setMainTab] = useState<MainTab>(() => (typeof window !== "undefined" ? readMainTab() : "wisdom"));
   const [focusRunning, setFocusRunning] = useState(false);
   const [focusLogs, setFocusLogs] = useState<FocusLogRow[]>([]);
-
-  const [links, setLinks] = useState<LinkItem[]>([]);
   const [taskLists, setTaskLists] = useState<TaskListRow[]>([]);
   const [taskRows, setTaskRows] = useState<TaskRow[]>([]);
 
@@ -135,7 +146,7 @@ export default function DashboardClient() {
   }, [focusRows, today]);
 
   const quote = useMemo(() => {
-    const style = (profile?.quote_style ?? "motivational") as QuoteStyle;
+    const style = (profile?.quote_style ?? "theology") as QuoteStyle;
     const custom = profile?.custom_quotes
       ?.split("\n")
       .map((l) => l.trim())
@@ -143,51 +154,43 @@ export default function DashboardClient() {
     return pickDailyQuote(style, custom);
   }, [profile]);
 
+  const quoteParts = useMemo(() => splitQuoteAttribution(quote), [quote]);
+
   const name = profile?.name?.trim() || "Friend";
+
+  const setMainTabPersist = useCallback((t: MainTab) => {
+    setMainTab(t);
+    try {
+      localStorage.setItem(MAIN_TAB_KEY, t);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const mementoPrimary = memento[0];
+  const mementoStats = useMemo(() => {
+    if (!mementoPrimary) return null;
+    return computeMementoStats({
+      label: mementoPrimary.label,
+      birthYear: mementoPrimary.birth_year,
+      birthDate: mementoPrimary.birth_date ?? null,
+      lifeExpectancy: mementoPrimary.life_expectancy ?? 82,
+    });
+  }, [mementoPrimary]);
+
+  const weeksMemento = useMemo(() => {
+    if (!mementoStats) return null;
+    const lived = Math.max(0, Math.floor(mementoStats.daysTogetherApprox / 7));
+    const left = Math.max(0, Math.floor(mementoStats.daysRemainingApprox / 7));
+    const span = Math.max(1, lived + left);
+    const livedRatio = Math.min(1, lived / span);
+    return { lived, left, livedRatio };
+  }, [mementoStats]);
 
   useEffect(() => {
     setClock(new Date());
     const id = window.setInterval(() => setClock(new Date()), 1000);
     return () => window.clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    setLinks(readLinks());
-  }, []);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        if (navigator.geolocation) {
-          await new Promise<void>((resolve) => {
-            navigator.geolocation.getCurrentPosition(
-              async (pos) => {
-                try {
-                  const w = await fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude, "Here");
-                  setWeather(w);
-                } catch {
-                  setWeather(await fetchMelbourneWeather());
-                }
-                resolve();
-              },
-              async () => {
-                try {
-                  setWeather(await fetchMelbourneWeather());
-                } catch {
-                  setWeather({ label: "Melbourne", tempC: 0, icon: "⛅" });
-                }
-                resolve();
-              },
-              { maximumAge: 60_000, timeout: 8000 }
-            );
-          });
-        } else {
-          setWeather(await fetchMelbourneWeather());
-        }
-      } catch {
-        setWeather({ label: "Melbourne", tempC: 0, icon: "⛅" });
-      }
-    })();
   }, []);
 
   useEffect(() => {
@@ -402,6 +405,14 @@ export default function DashboardClient() {
     }, 450);
   };
 
+  const flushGoalNow = useCallback(() => {
+    if (goalDebounce.current) {
+      window.clearTimeout(goalDebounce.current);
+      goalDebounce.current = null;
+    }
+    void persistGoalRemote(goalText);
+  }, [goalText, persistGoalRemote]);
+
   const handleFocusSessionEnd = useCallback(
     async (payload: FocusSessionEndPayload) => {
       if (!session?.user) return;
@@ -525,51 +536,66 @@ export default function DashboardClient() {
     }
   };
 
-  const loadCalendar = useCallback(async () => {
-    setCalendarBusy(true);
-    setCalendarError(null);
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.provider_token;
-      if (!token) {
-        setCalendarError("missing_token");
-        setCalendarEvents([]);
-        setCalendarBusy(false);
-        return;
+  const refreshCalendar = useCallback(
+    async (opts?: { interactive?: boolean }) => {
+      const interactive = opts?.interactive ?? false;
+      if (interactive) {
+        setCalendarBusy(true);
+        setCalendarError(null);
       }
-      const cacheKey = "focal_cal_" + today;
-      const raw = sessionStorage.getItem(cacheKey);
-      const ts = sessionStorage.getItem(cacheKey + "_ts");
-      if (raw && ts && Date.now() - Number(ts) < 15 * 60 * 1000) {
-        const parsed = JSON.parse(raw) as CalendarEventItem[];
-        setCalendarEvents(
-          parsed.map((e) => ({
-            ...e,
-            start: new Date(e.start as unknown as string),
-            end: new Date(e.end as unknown as string),
-          }))
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.provider_token;
+        if (!token) {
+          if (interactive) {
+            setCalendarError("missing_token");
+            setCalendarEvents([]);
+          }
+          return;
+        }
+        const cacheKey = "focal_cal_" + today;
+        const raw = sessionStorage.getItem(cacheKey);
+        const ts = sessionStorage.getItem(cacheKey + "_ts");
+        if (raw && ts && Date.now() - Number(ts) < 15 * 60 * 1000) {
+          const parsed = JSON.parse(raw) as CalendarEventItem[];
+          setCalendarEvents(
+            parsed.map((e) => ({
+              ...e,
+              start: new Date(e.start as unknown as string),
+              end: new Date(e.end as unknown as string),
+            }))
+          );
+          return;
+        }
+        const evs = await fetchTodayEvents(token);
+        setCalendarEvents(evs);
+        sessionStorage.setItem(
+          cacheKey,
+          JSON.stringify(evs.map((e) => ({ ...e, start: e.start.toISOString(), end: e.end.toISOString() })))
         );
-        setCalendarBusy(false);
-        return;
+        sessionStorage.setItem(cacheKey + "_ts", String(Date.now()));
+      } catch (e) {
+        if (interactive) {
+          setCalendarError((e as Error).message);
+          setCalendarEvents([]);
+        }
+      } finally {
+        if (interactive) setCalendarBusy(false);
       }
-      const evs = await fetchTodayEvents(token);
-      setCalendarEvents(evs);
-      sessionStorage.setItem(
-        cacheKey,
-        JSON.stringify(evs.map((e) => ({ ...e, start: e.start.toISOString(), end: e.end.toISOString() })))
-      );
-      sessionStorage.setItem(cacheKey + "_ts", String(Date.now()));
-    } catch (e) {
-      setCalendarError((e as Error).message);
-      setCalendarEvents([]);
-    } finally {
-      setCalendarBusy(false);
-    }
-  }, [supabase, today]);
+    },
+    [supabase, today]
+  );
 
   useEffect(() => {
-    if (panel === "calendar" && session) void loadCalendar();
-  }, [panel, session, loadCalendar]);
+    if (panel === "calendar" && session) void refreshCalendar({ interactive: true });
+  }, [panel, session, refreshCalendar]);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    void refreshCalendar();
+    const id = window.setInterval(() => void refreshCalendar(), 15 * 60 * 1000);
+    return () => window.clearInterval(id);
+  }, [session?.user, refreshCalendar]);
 
   const theme: ThemeMode = profile?.theme ?? "photo";
 
@@ -671,126 +697,216 @@ export default function DashboardClient() {
           />
         ) : null}
       </div>
-      <div className="focal-content">
-        <div className="focal-topbar">
-          <div className="focal-top-wrap">
-            <div className="focal-corner-nav">
-              <button className="focal-corner-btn" type="button" onClick={() => setPanel("links")}>
-                <span className="focal-corner-ico" aria-hidden>
-                  🔗
-                </span>
-                Links
-              </button>
-              <button className="focal-corner-btn" type="button" onClick={() => setFocusOpen(true)}>
-                <span className="focal-corner-ico" aria-hidden>
-                  🎯
-                </span>
-                Focus
-              </button>
-              <button className="focal-corner-btn" type="button" onClick={() => setPanel("blocker")}>
-                <span className="focal-corner-ico" aria-hidden>
-                  🛑
-                </span>
-                Blocker
-              </button>
+      <div className="focal-content focal-obs">
+        <aside className="focal-obs-sidebar">
+          <div className="focal-obs-brand">Focal</div>
+          {focusRunning ? (
+            <div className="focal-obs-live-pill" aria-live="polite">
+              Focusing
             </div>
-            {focusOpen && focusRunning ? (
-              <div className="focal-top-center">
-                <div className="focal-pill live">Focusing</div>
-              </div>
-            ) : null}
-            <div className="focal-top-right">
-              <div className="focal-pill muted">
-                <span aria-hidden>⏱</span>
-                {focusMinutesToday}m Focused Today
-              </div>
-              {weather ? (
-                <div className="focal-pill muted">
-                  <span aria-hidden>{weather.icon}</span>
-                  {weather.tempC}° {weather.label}
-                </div>
-              ) : null}
-              <button className="focal-corner-btn" type="button" aria-label="Calendar" onClick={() => setPanel("calendar")}>
-                <span className="focal-corner-ico" aria-hidden>
-                  📅
-                </span>
-                Cal
+          ) : null}
+          <div className="focal-obs-date-block">
+            <div className="focal-obs-date-kicker">Today</div>
+            <div className="focal-obs-date-long">
+              {clock.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+            </div>
+            <p className="focal-obs-greeting">{formatGreetingLine(profile?.greeting_template ?? null, name, clock.getHours())}</p>
+          </div>
+
+          <section className="focal-obs-side-section" aria-labelledby="focal-obs-now-h">
+            <h2 id="focal-obs-now-h" className="focal-obs-side-label">
+              Now
+            </h2>
+            <div className="focal-obs-side-value">{formatClock(clock, profile?.clock_format ?? "24hr")}</div>
+          </section>
+
+          <p className="focal-obs-focus-stat">{focusMinutesToday}m focused today</p>
+        </aside>
+
+        <main className="focal-obs-main">
+          <div className="focal-obs-main-top">
+            <nav className="focal-obs-main-tabs" aria-label="Main views">
+              {(["wisdom", "archive", "focus"] as const).map((t) => (
+                <button key={t} type="button" className={mainTab === t ? "active" : ""} onClick={() => setMainTabPersist(t)}>
+                  {t === "focus" ? "Focus" : t === "archive" ? "Archive" : "Wisdom"}
+                </button>
+              ))}
+            </nav>
+            <div className="focal-obs-top-right">
+              <button
+                type="button"
+                className="focal-obs-icon-btn"
+                aria-label="Today on calendar"
+                onClick={() => setPanel("calendar")}
+                title="Calendar"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                  <rect x="3" y="5" width="18" height="16" rx="2" />
+                  <path d="M3 10h18M8 3v4M16 3v4" strokeLinecap="round" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="focal-obs-icon-btn"
+                aria-label="Open settings"
+                aria-expanded={panel === "settings"}
+                onClick={() => setPanel((p) => (p === "settings" ? "none" : "settings"))}
+                title="Settings"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" strokeLinecap="round" />
+                </svg>
               </button>
             </div>
           </div>
-        </div>
 
-        <div className="focal-clock">{formatClock(clock, profile?.clock_format ?? "24hr")}</div>
-        <div className="focal-greeting">
-          {formatGreetingLine(profile?.greeting_template ?? null, name, clock.getHours())}
-        </div>
-        {session?.user ? (
-          <HomeMementoCard memento={memento} userId={session.user.id} supabase={supabase} onChange={setMemento} />
-        ) : null}
-        <div className="focal-goal">
-          <input
-            value={goalText}
-            onChange={(e) => onGoalChange(e.target.value)}
-            placeholder="What is your main goal for today?"
-          />
-        </div>
+          {mainTab === "wisdom" ? (
+            <div className="focal-obs-tab-panel focal-obs-tab-wisdom">
+              <div className="focal-obs-hero-wrap">
+                <p className="focal-obs-hero-eyebrow focal-obs-eyebrow-gold">Remaining time</p>
+                {weeksMemento ? (
+                  <div className="focal-obs-life-bar-block">
+                    <div className="focal-obs-life-bar" role="img" aria-label="Weeks lived versus weeks that may remain in your model">
+                      <div className="focal-obs-life-bar-track">
+                        <div
+                          className="focal-obs-life-bar-lived"
+                          style={{ flexGrow: Math.max(0.04, weeksMemento.livedRatio), flexShrink: 1, flexBasis: 0 }}
+                        />
+                        <div
+                          className="focal-obs-life-bar-left"
+                          style={{ flexGrow: Math.max(0.04, 1 - weeksMemento.livedRatio), flexShrink: 1, flexBasis: 0 }}
+                        />
+                      </div>
+                    </div>
+                    <div className="focal-obs-life-bar-labels">
+                      <div className="focal-obs-life-stat focal-obs-life-stat--past">
+                        <span className="focal-obs-life-num">{weeksMemento.lived.toLocaleString("en-US")}</span>
+                        <span className="focal-obs-life-caption">weeks lived</span>
+                      </div>
+                      <div className="focal-obs-life-stat focal-obs-life-stat--future">
+                        <span className="focal-obs-life-num">{weeksMemento.left.toLocaleString("en-US")}</span>
+                        <span className="focal-obs-life-caption">weeks still yours</span>
+                      </div>
+                    </div>
+                    <p className="focal-obs-life-urgency">The right side is not guaranteed — only gone is certain.</p>
+                  </div>
+                ) : (
+                  <p className="focal-obs-hero-hint">Add your birth date under Settings → Memento mori to see your modeled weeks.</p>
+                )}
+              </div>
+
+              <figure className="focal-obs-quote">
+                <blockquote className="focal-obs-quote-body">
+                  {"\u201C"}
+                  {quoteParts.body}
+                  {"\u201D"}
+                </blockquote>
+                {quoteParts.author ? <figcaption className="focal-obs-quote-by">— {quoteParts.author.toUpperCase()}</figcaption> : null}
+              </figure>
+
+              <div className="focal-obs-goal">
+                <label className="focal-obs-goal-label" htmlFor="focal-main-goal">
+                  What is your main goal for today?
+                </label>
+                <div className="focal-obs-goal-row">
+                  <input
+                    id="focal-main-goal"
+                    value={goalText}
+                    onChange={(e) => onGoalChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        flushGoalNow();
+                      }
+                    }}
+                    placeholder="Enter silence and focus…"
+                    autoComplete="off"
+                  />
+                  <span className="focal-obs-goal-return" aria-hidden title="Press Enter to save">
+                    ↵
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {mainTab === "archive" ? (
+            <div className="focal-obs-tab-panel focal-obs-tab-archive">
+              <h2 className="focal-obs-archive-title">Session archive</h2>
+              {focusLogs.length === 0 ? (
+                <p className="focal-obs-archive-empty">Completed focus sessions will appear here.</p>
+              ) : (
+                <div className="focal-obs-archive-list">
+                  {focusLogs.map((log) => (
+                    <FocusHistoryCard key={log.id} log={log} />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          <div className="focal-obs-tab-panel focal-obs-tab-focus" hidden={mainTab !== "focus"}>
+            <FocusOverlay
+              variant="inline"
+              open={mainTab === "focus"}
+              onClose={() => setMainTabPersist("wisdom")}
+              defaultFocusMinutes={profile?.focus_duration ?? 25}
+              defaultBreakMinutes={profile?.break_duration ?? 5}
+              onSessionEnd={(p) => void handleFocusSessionEnd(p)}
+              onRunningChange={setFocusRunning}
+              onOpenHistory={() => setMainTabPersist("archive")}
+            />
+            <details className="focal-obs-focus-blocker">
+              <summary>Site blocker</summary>
+              <div className="focal-obs-focus-blocker-body">
+                <p className="focal-obs-blocker-intro">
+                  {isEmbeddedExtension()
+                    ? "Blocking runs inside the browser extension."
+                    : "Install the Focal extension to enforce blocks. You can still manage your list here."}
+                </p>
+                <div className="focal-obs-blocker-toggle-row">
+                  <span>Blocker active</span>
+                  <button
+                    type="button"
+                    className={`focal-switch ${blockerActive ? "on" : ""}`}
+                    aria-pressed={blockerActive}
+                    onClick={() => toggleBlocker(!blockerActive)}
+                  />
+                </div>
+                <BlockerForm onAdd={(d) => void addBlocked(d)} />
+                <div className="focal-obs-blocker-presets">
+                  {(Object.keys(BLOCKER_PRESETS) as (keyof typeof BLOCKER_PRESETS)[]).map((k) => (
+                    <button key={k} className="focal-btn" type="button" onClick={() => addPreset(k)}>
+                      {k}
+                    </button>
+                  ))}
+                </div>
+                {blocked.map((b) => (
+                  <div key={b.id} className="focal-list-row">
+                    <span>{b.domain}</span>
+                    <button className="focal-btn" type="button" onClick={() => void removeBlocked(b.id)}>
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </details>
+          </div>
+        </main>
       </div>
 
       <div className="focal-bottom">
         <div className="focal-credit">
           <span>Li Jiang, China</span>
-          <button
-            type="button"
-            className="focal-icon-btn focal-bottom-settings"
-            aria-label="Open settings"
-            aria-expanded={panel === "settings"}
-            onClick={() => setPanel((p) => (p === "settings" ? "none" : "settings"))}
-          >
-            ⚙️
-          </button>
         </div>
       </div>
 
-      <div className="focal-quote">{quote}</div>
-
       {offlineFlash ? <div className="focal-offline">Offline — changes will sync</div> : null}
-
-      <SlidePanel open={panel === "blocker"} onClose={() => setPanel("none")} anchor="left" title="Site blocker">
-        <p style={{ color: "rgba(255,255,255,0.7)", marginTop: 0 }}>
-          {isEmbeddedExtension()
-            ? "Blocking runs inside the browser extension."
-            : "Install the Focal extension to enforce blocks. You can still manage your list here."}
-        </p>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", marginBottom: "0.75rem" }}>
-          <span>Blocker Active</span>
-          <button
-            type="button"
-            className={`focal-switch ${blockerActive ? "on" : ""}`}
-            aria-pressed={blockerActive}
-            onClick={() => toggleBlocker(!blockerActive)}
-          />
-        </div>
-        <BlockerForm onAdd={(d) => void addBlocked(d)} />
-        <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", margin: "0.75rem 0" }}>
-          {(Object.keys(BLOCKER_PRESETS) as (keyof typeof BLOCKER_PRESETS)[]).map((k) => (
-            <button key={k} className="focal-btn" type="button" onClick={() => addPreset(k)}>
-              {k}
-            </button>
-          ))}
-        </div>
-        {blocked.map((b) => (
-          <div key={b.id} className="focal-list-row">
-            <span>{b.domain}</span>
-            <button className="focal-btn" type="button" onClick={() => void removeBlocked(b.id)}>
-              ×
-            </button>
-          </div>
-        ))}
-      </SlidePanel>
 
       <SlidePanel open={panel === "calendar"} onClose={() => setPanel("none")} anchor="right" title="Today">
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }}>
-          <button className="focal-btn" type="button" onClick={() => void loadCalendar()}>
+          <button className="focal-btn" type="button" onClick={() => void refreshCalendar({ interactive: true })}>
             Refresh
           </button>
         </div>
@@ -834,38 +950,6 @@ export default function DashboardClient() {
           />
         ) : null}
       </SlidePanel>
-
-      <SlidePanel open={panel === "links"} onClose={() => setPanel("none")} anchor="left" title="Links">
-        <LinksEditor
-          items={links}
-          onChange={(next) => {
-            setLinks(next);
-            localStorage.setItem(LINKS_KEY, JSON.stringify(next));
-          }}
-        />
-      </SlidePanel>
-
-      <SlidePanel open={panel === "focusHistory"} onClose={() => setPanel("none")} anchor="right" title="Focus history">
-        {focusLogs.length === 0 ? (
-          <p style={{ color: "rgba(255,255,255,0.65)", marginTop: 0 }}>Completed sessions will appear here.</p>
-        ) : (
-          focusLogs.map((log) => (
-            <FocusHistoryCard key={log.id} log={log} />
-          ))
-        )}
-      </SlidePanel>
-
-      <FocusOverlay
-        open={focusOpen}
-        onClose={() => setFocusOpen(false)}
-        defaultFocusMinutes={profile?.focus_duration ?? 25}
-        defaultBreakMinutes={profile?.break_duration ?? 5}
-        onSessionEnd={(p) => void handleFocusSessionEnd(p)}
-        onRunningChange={setFocusRunning}
-        onOpenHistory={() => {
-          setPanel("focusHistory");
-        }}
-      />
 
       {session?.user && taskLists.length > 0 ? (
         <TasksDock
@@ -1051,37 +1135,3 @@ function CalendarList({ events }: { events: CalendarEventItem[] }) {
   );
 }
 
-function LinksEditor({ items, onChange }: { items: LinkItem[]; onChange: (n: LinkItem[]) => void }) {
-  const [label, setLabel] = useState("");
-  const [url, setUrl] = useState("");
-  return (
-    <div>
-      <div style={{ display: "flex", gap: "0.35rem", flexDirection: "column" }}>
-        <input className="focal-input" placeholder="Label" value={label} onChange={(e) => setLabel(e.target.value)} />
-        <input className="focal-input" placeholder="https://" value={url} onChange={(e) => setUrl(e.target.value)} />
-        <button
-          className="focal-btn primary"
-          type="button"
-          onClick={() => {
-            if (!url.trim()) return;
-            onChange([...items, { label: label.trim() || url.trim(), url: url.trim() }]);
-            setLabel("");
-            setUrl("");
-          }}
-        >
-          Add link
-        </button>
-      </div>
-      {items.map((l, i) => (
-        <div key={`${l.url}-${i}`} className="focal-list-row">
-          <a href={l.url} target="_blank" rel="noreferrer">
-            {l.label}
-          </a>
-          <button className="focal-btn" type="button" onClick={() => onChange(items.filter((_, idx) => idx !== i))}>
-            ×
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}

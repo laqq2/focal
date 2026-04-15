@@ -27,7 +27,7 @@ export function GeneralSection({
   const [name, setName] = useState(profile?.name ?? "");
   const [greetingTemplate, setGreetingTemplate] = useState(profile?.greeting_template ?? "");
   const [clock, setClock] = useState(profile?.clock_format ?? "24hr");
-  const [quoteStyle, setQuoteStyle] = useState<QuoteStyle>(profile?.quote_style ?? "motivational");
+  const [quoteStyle, setQuoteStyle] = useState<QuoteStyle>(profile?.quote_style ?? "theology");
   const [customQuotes, setCustomQuotes] = useState(profile?.custom_quotes ?? "");
   const [theme, setTheme] = useState<ThemeMode>(profile?.theme ?? "photo");
   const [widget, setWidget] = useState(profile?.show_memento_widget ?? false);
@@ -36,7 +36,7 @@ export function GeneralSection({
     setName(profile?.name ?? "");
     setGreetingTemplate(profile?.greeting_template ?? "");
     setClock(profile?.clock_format ?? "24hr");
-    setQuoteStyle(profile?.quote_style ?? "motivational");
+    setQuoteStyle(profile?.quote_style ?? "theology");
     setCustomQuotes(profile?.custom_quotes ?? "");
     setTheme(profile?.theme ?? "photo");
     setWidget(profile?.show_memento_widget ?? false);
@@ -88,6 +88,7 @@ export function GeneralSection({
         <label className="focal-settings-label">
           Quote style
           <select className="focal-input" value={quoteStyle} onChange={(e) => setQuoteStyle(e.target.value as QuoteStyle)}>
+            <option value="theology">Christian theologians</option>
             <option value="motivational">Motivational</option>
             <option value="stoic">Stoic</option>
             <option value="custom">Custom (one per line)</option>
@@ -101,7 +102,7 @@ export function GeneralSection({
         ) : null}
         <label className="focal-settings-toggle">
           <input type="checkbox" checked={widget} onChange={(e) => setWidget(e.target.checked)} />
-          <span>Show compact memento chip on dashboard (in addition to the home card)</span>
+          <span>Show compact memento chip (optional; main view uses Wisdom tab)</span>
         </label>
         <button
           className="focal-btn primary"

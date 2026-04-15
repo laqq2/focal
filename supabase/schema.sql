@@ -6,7 +6,7 @@ create table if not exists profiles (
   clock_format text default '24hr' check (clock_format in ('12hr', '24hr')),
   focus_duration int default 25,
   break_duration int default 5,
-  quote_style text default 'motivational' check (quote_style in ('motivational', 'stoic', 'custom')),
+  quote_style text default 'theology' check (quote_style in ('motivational', 'stoic', 'theology', 'custom')),
   custom_quotes text,
   show_memento_widget boolean default false,
   theme text default 'photo' check (theme in ('photo', 'solid')),

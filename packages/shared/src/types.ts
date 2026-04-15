@@ -1,6 +1,6 @@
 export type ClockFormat = "12hr" | "24hr";
 
-export type QuoteStyle = "motivational" | "stoic" | "custom";
+export type QuoteStyle = "motivational" | "stoic" | "theology" | "custom";
 
 export type ThemeMode = "photo" | "solid";
 

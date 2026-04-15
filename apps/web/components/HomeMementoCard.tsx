@@ -12,11 +12,14 @@ export function HomeMementoCard({
   userId,
   supabase,
   onChange,
+  compact = false,
 }: {
   memento: MementoEntryRow[];
   userId: string;
   supabase: Supabase;
   onChange: (rows: MementoEntryRow[]) => void;
+  /** Sidebar: hide large duplicate hero; keep model + settings. */
+  compact?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -91,7 +94,12 @@ export function HomeMementoCard({
       <div className="focal-memento-urgent-strip" aria-hidden />
       <p className="focal-memento-urgent-eyebrow">Memento mori · {primary.label}</p>
 
-      {stats ? (
+      {stats && compact ? (
+        <p className="focal-memento-sidebar-brief">
+          ~{daysLeft.toLocaleString()} days in model · {progressPct}% of expected life lived
+        </p>
+      ) : null}
+      {stats && !compact ? (
         <div className="focal-memento-urgent-hero">
           <div className="focal-memento-urgent-huge-wrap" title="Approximate days left in your modeled lifespan">
             <span className="focal-memento-urgent-huge">{daysLeft.toLocaleString()}</span>
