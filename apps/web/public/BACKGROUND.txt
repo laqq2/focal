@@ -1,0 +1,5 @@
+Add your Li Jiang twilight photograph as:
+
+  background.jpg
+
+in this folder. Until then, Focal falls back to the solid dark theme automatically if the image is missing.

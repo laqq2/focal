@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Blocked — Focal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600&family=DM+Serif+Display&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "DM Sans", system-ui, sans-serif;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 2rem;
+        background: radial-gradient(circle at 20% 20%, #1f2937, #030712 65%);
+      }
+      .card {
+        max-width: 520px;
+        padding: 1.75rem 1.5rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(20, 20, 20, 0.85);
+        backdrop-filter: blur(20px);
+      }
+      h1 {
+        font-family: "DM Serif Display", serif;
+        font-weight: 400;
+        margin: 0 0 0.75rem;
+      }
+      p {
+        margin: 0.35rem 0;
+        color: rgba(255, 255, 255, 0.75);
+        line-height: 1.5;
+      }
+      button {
+        margin-top: 1.25rem;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        padding: 0.55rem 1rem;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      button:hover {
+        filter: brightness(1.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1 id="title">🚫 This site is blocked</h1>
+      <p id="host"></p>
+      <p>Take a breath. What you were about to do — is it aligned with the day you want to have?</p>
+      <button type="button" id="back">Go back</button>
+    </div>
+    <script src="blocked.js"></script>
+  </body>
+</html>

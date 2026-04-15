@@ -1,0 +1,8 @@
+{
+  "name": "Focal",
+  "short_name": "Focal",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "focal",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@focal/web",
+    "build": "npm run build --workspace=@focal/web",
+    "lint": "npm run lint --workspace=@focal/web"
+  },
+  "engines": {
+    "node": ">=18.18"
+  }
+}
