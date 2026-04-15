@@ -1602,11 +1602,82 @@ button {
   margin-bottom: 0.25rem;
 }
 
-/* Dashboard settings popup (gear, bottom-left) */
+/* Dashboard settings: flush body when used inside slide panels */
 .focal-panel-body--flush {
   padding: 0;
   max-height: min(74vh, 700px);
   overflow: hidden;
+}
+
+/* Settings dropdown from header gear (portal to body) */
+.focal-settings-drop-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(4, 4, 6, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: focal-settings-backdrop-in 0.2s ease-out both;
+}
+
+@keyframes focal-settings-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.focal-settings-dropdown {
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(155deg, rgba(22, 22, 28, 0.94) 0%, rgba(10, 10, 14, 0.92) 100%);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  backdrop-filter: blur(22px) saturate(1.15);
+  -webkit-backdrop-filter: blur(22px) saturate(1.15);
+  overflow: hidden;
+  animation: focal-settings-dropdown-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes focal-settings-dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.focal-settings-dropdown-close {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.focal-settings-dropdown-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
 }
 
 .focal-settings-popup {
@@ -1616,19 +1687,19 @@ button {
   max-height: min(74vh, 700px);
 }
 
-.focal-settings-popup-top {
+.focal-settings-popup--dropdown {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: 0.35rem;
+  width: 100%;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  flex-shrink: 0;
+  flex-direction: column;
 }
 
-.focal-settings-popup-title {
-  font-size: 1.05rem;
-  letter-spacing: 0.02em;
+.focal-settings-dropdown > .focal-settings-popup {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .focal-settings-popup-grid {
@@ -1638,50 +1709,149 @@ button {
   flex: 1;
 }
 
+.focal-settings-popup--dropdown .focal-settings-popup-grid {
+  grid-template-columns: 152px minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+}
+
 .focal-settings-popup-nav {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.65rem 0.5rem 0.75rem;
+  gap: 0.12rem;
+  padding: 0.6rem 0.45rem 0.75rem;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.28);
   overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.focal-settings-popup--dropdown .focal-settings-popup-nav {
+  width: 152px;
+  min-width: 152px;
+  max-width: 152px;
 }
 
 .focal-settings-popup-nav button {
   text-align: left;
-  padding: 0.45rem 0.55rem;
+  padding: 0.48rem 0.55rem;
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.84rem;
   cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
 .focal-settings-popup-nav button:hover {
   background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .focal-settings-popup-nav button.active {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
   font-weight: 600;
 }
 
 .focal-settings-popup-scroll {
   overflow-y: auto;
-  padding: 0.5rem 0.85rem 1rem;
+  padding: 0.65rem 1rem 1rem 1.05rem;
   min-height: 0;
+}
+
+.focal-settings-popup--dropdown .focal-settings-popup-scroll {
+  padding-top: 0.5rem;
+  padding-right: 2.5rem;
 }
 
 .focal-settings-popup-scroll .focal-settings-section h1 {
   font-size: 1.15rem;
 }
 
+.focal-settings-popup--dropdown .focal-settings-section h1 {
+  font-size: clamp(1.35rem, 2.4vw, 1.7rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.25rem;
+}
+
+.focal-settings-popup--dropdown .focal-settings-sub {
+  margin: 0 0 1rem;
+  font-size: 0.86rem;
+  color: rgba(255, 255, 255, 0.48);
+}
+
 .focal-settings-popup-scroll .focal-settings-h2 {
   font-size: 0.95rem;
+}
+
+.focal-settings-card--apps {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.focal-settings-app-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.focal-settings-app-row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.focal-settings-app-row-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.25;
+}
+
+.focal-settings-app-row-desc {
+  margin: 0.2rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.focal-settings-app-row-control {
+  flex-shrink: 0;
+}
+
+.focal-settings-input-inline {
+  min-width: 6.5rem;
+  max-width: 10rem;
+  padding: 0.38rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.focal-settings-input-number {
+  width: 4.25rem;
+  min-width: 4.25rem;
+  max-width: 5rem;
+  text-align: center;
+}
+
+.focal-settings-app-field-block {
+  padding: 0.85rem 1rem 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.focal-settings-app-actions {
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.15);
 }
 
 @media (max-width: 520px) {
@@ -1694,6 +1864,19 @@ button {
     flex-wrap: wrap;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .focal-settings-popup--dropdown .focal-settings-popup-grid {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .focal-settings-popup--dropdown .focal-settings-popup-nav {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    flex-direction: row;
+    flex-wrap: wrap;
   }
 }
 

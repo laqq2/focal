@@ -1,10 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { ClockFormat, ProfileRow, QuoteStyle, ThemeMode } from "@focal/shared";
 import type { createSupabaseBrowser } from "@/lib/supabase-browser";
 import { authRedirectToApp } from "@/lib/auth-origin";
+
+export function SettingsAppRow({
+  title,
+  description,
+  control,
+}: {
+  title: string;
+  description: string;
+  control: ReactNode;
+}) {
+  return (
+    <div className="focal-settings-app-row">
+      <div className="focal-settings-app-row-text">
+        <div className="focal-settings-app-row-title">{title}</div>
+        <p className="focal-settings-app-row-desc">{description}</p>
+      </div>
+      <div className="focal-settings-app-row-control">{control}</div>
+    </div>
+  );
+}
 
 export type SettingsNavSection = "general" | "account" | "focus" | "memento" | "calendar" | "help";
 
@@ -54,73 +74,94 @@ export function GeneralSection({
   return (
     <section className="focal-settings-section">
       <h1>General</h1>
-      <p className="focal-settings-sub">Basics that show on your dashboard.</p>
-      <div className="focal-settings-card">
-        <label className="focal-settings-label">
-          Your name
-          <input className="focal-input" value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <label className="focal-settings-label">
-          Greeting line
-          <textarea
-            className="focal-input"
-            rows={2}
-            value={greetingTemplate}
-            onChange={(e) => setGreetingTemplate(e.target.value)}
-            placeholder='e.g. {greeting}, {name} — or write anything; leave blank for default.'
-          />
-          <span className="focal-settings-hint">Placeholders: {"{name}"}, {"{greeting}"} (morning / afternoon / evening).</span>
-        </label>
-        <label className="focal-settings-label">
-          Clock format
-          <select className="focal-input" value={clock} onChange={(e) => setClock(e.target.value as ClockFormat)}>
-            <option value="24hr">24 hour</option>
-            <option value="12hr">12 hour</option>
-          </select>
-        </label>
-        <label className="focal-settings-label">
-          Theme
-          <select className="focal-input" value={theme} onChange={(e) => setTheme(e.target.value as ThemeMode)}>
-            <option value="photo">Photo background</option>
-            <option value="solid">Solid dark</option>
-          </select>
-        </label>
-        <label className="focal-settings-label">
-          Quote style
-          <select className="focal-input" value={quoteStyle} onChange={(e) => setQuoteStyle(e.target.value as QuoteStyle)}>
-            <option value="theology">Christian theologians</option>
-            <option value="motivational">Motivational</option>
-            <option value="stoic">Stoic</option>
-            <option value="custom">Custom (one per line)</option>
-          </select>
-        </label>
-        {quoteStyle === "custom" ? (
-          <label className="focal-settings-label">
-            Custom quotes
-            <textarea className="focal-input" rows={4} value={customQuotes} onChange={(e) => setCustomQuotes(e.target.value)} />
-          </label>
-        ) : null}
-        <label className="focal-settings-toggle">
-          <input type="checkbox" checked={widget} onChange={(e) => setWidget(e.target.checked)} />
-          <span>Show compact memento chip (optional; main view uses Wisdom tab)</span>
-        </label>
-        <button
-          className="focal-btn primary"
-          type="button"
-          onClick={() =>
-            void onSave({
-              name,
-              greeting_template: greetingTemplate.trim() || null,
-              clock_format: clock,
-              quote_style: quoteStyle,
-              custom_quotes: customQuotes || null,
-              theme,
-              show_memento_widget: widget,
-            })
+      <p className="focal-settings-sub">Customize your dashboard.</p>
+      <div className="focal-settings-card focal-settings-card--apps">
+        <SettingsAppRow
+          title="Theme"
+          description="Photo backdrop or a calm solid dark canvas."
+          control={
+            <select className="focal-input focal-settings-input-inline" value={theme} onChange={(e) => setTheme(e.target.value as ThemeMode)}>
+              <option value="photo">Photo</option>
+              <option value="solid">Solid</option>
+            </select>
           }
-        >
-          Save
-        </button>
+        />
+        <SettingsAppRow
+          title="Clock"
+          description="How the time reads in the sidebar."
+          control={
+            <select className="focal-input focal-settings-input-inline" value={clock} onChange={(e) => setClock(e.target.value as ClockFormat)}>
+              <option value="24hr">24h</option>
+              <option value="12hr">12h</option>
+            </select>
+          }
+        />
+        <SettingsAppRow
+          title="Quotes"
+          description="Curated lines for the Wisdom tab."
+          control={
+            <select className="focal-input focal-settings-input-inline" value={quoteStyle} onChange={(e) => setQuoteStyle(e.target.value as QuoteStyle)}>
+              <option value="theology">Theology</option>
+              <option value="motivational">Motivational</option>
+              <option value="stoic">Stoic</option>
+              <option value="custom">Custom</option>
+            </select>
+          }
+        />
+        <SettingsAppRow
+          title="Memento chip"
+          description="Optional compact reminder alongside the main view."
+          control={
+            <button
+              type="button"
+              className={`focal-switch ${widget ? "on" : ""}`}
+              aria-pressed={widget}
+              onClick={() => setWidget((w) => !w)}
+            />
+          }
+        />
+        <div className="focal-settings-app-field-block">
+          <label className="focal-settings-label">
+            Your name
+            <input className="focal-input" value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label className="focal-settings-label">
+            Greeting line
+            <textarea
+              className="focal-input"
+              rows={2}
+              value={greetingTemplate}
+              onChange={(e) => setGreetingTemplate(e.target.value)}
+              placeholder='e.g. {greeting}, {name} — or write anything; leave blank for default.'
+            />
+            <span className="focal-settings-hint">Placeholders: {"{name}"}, {"{greeting}"} (morning / afternoon / evening).</span>
+          </label>
+          {quoteStyle === "custom" ? (
+            <label className="focal-settings-label">
+              Custom quotes
+              <textarea className="focal-input" rows={4} value={customQuotes} onChange={(e) => setCustomQuotes(e.target.value)} />
+            </label>
+          ) : null}
+        </div>
+        <div className="focal-settings-app-actions">
+          <button
+            className="focal-btn primary"
+            type="button"
+            onClick={() =>
+              void onSave({
+                name,
+                greeting_template: greetingTemplate.trim() || null,
+                clock_format: clock,
+                quote_style: quoteStyle,
+                custom_quotes: customQuotes || null,
+                theme,
+                show_memento_widget: widget,
+              })
+            }
+          >
+            Save changes
+          </button>
+        </div>
       </div>
     </section>
   );
@@ -239,19 +280,41 @@ export function FocusSection({
   return (
     <section className="focal-settings-section">
       <h1>Focus</h1>
-      <p className="focal-settings-sub">Default timer lengths for new focus sessions.</p>
-      <div className="focal-settings-card">
-        <label className="focal-settings-label">
-          Focus length (minutes)
-          <input className="focal-input" type="number" value={focusMin} onChange={(e) => setFocusMin(Number(e.target.value))} />
-        </label>
-        <label className="focal-settings-label">
-          Break length (minutes)
-          <input className="focal-input" type="number" value={breakMin} onChange={(e) => setBreakMin(Number(e.target.value))} />
-        </label>
-        <button className="focal-btn primary" type="button" onClick={() => void onSave({ focus_duration: focusMin, break_duration: breakMin })}>
-          Save
-        </button>
+      <p className="focal-settings-sub">Default timer lengths when you start a session.</p>
+      <div className="focal-settings-card focal-settings-card--apps">
+        <SettingsAppRow
+          title="Focus length"
+          description="Minutes for a standard focus block."
+          control={
+            <input
+              className="focal-input focal-settings-input-inline focal-settings-input-number"
+              type="number"
+              min={5}
+              max={120}
+              value={focusMin}
+              onChange={(e) => setFocusMin(Number(e.target.value))}
+            />
+          }
+        />
+        <SettingsAppRow
+          title="Break length"
+          description="Short pause after a focus round."
+          control={
+            <input
+              className="focal-input focal-settings-input-inline focal-settings-input-number"
+              type="number"
+              min={1}
+              max={60}
+              value={breakMin}
+              onChange={(e) => setBreakMin(Number(e.target.value))}
+            />
+          }
+        />
+        <div className="focal-settings-app-actions">
+          <button className="focal-btn primary" type="button" onClick={() => void onSave({ focus_duration: focusMin, break_duration: breakMin })}>
+            Save changes
+          </button>
+        </div>
       </div>
     </section>
   );

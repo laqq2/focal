@@ -41,13 +41,7 @@ export function DashboardSettingsPanel({
   const email = session.user.email ?? "";
 
   return (
-    <div className="focal-settings-popup">
-      <div className="focal-settings-popup-top">
-        <strong className="focal-settings-popup-title">Settings</strong>
-        <button className="focal-btn primary" type="button" onClick={onClose}>
-          Done
-        </button>
-      </div>
+    <div className="focal-settings-popup focal-settings-popup--dropdown">
       <div className="focal-settings-popup-grid">
         <nav className="focal-settings-popup-nav" aria-label="Settings sections">
           {SETTINGS_NAV.map((n) => (

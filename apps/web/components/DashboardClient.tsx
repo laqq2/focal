@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import {
@@ -149,6 +150,13 @@ export default function DashboardClient() {
   const [extensionLoginRefreshHint, setExtensionLoginRefreshHint] = useState(false);
 
   const goalDebounce = useRef<number | null>(null);
+  const settingsAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const [settingsDropdownLayout, setSettingsDropdownLayout] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+  } | null>(null);
 
   const today = todayIsoLocal();
 
@@ -213,6 +221,42 @@ export default function DashboardClient() {
     const id = window.setInterval(() => setClock(new Date()), 1000);
     return () => window.clearInterval(id);
   }, []);
+
+  useLayoutEffect(() => {
+    if (panel !== "settings" || !session?.user) {
+      setSettingsDropdownLayout(null);
+      return;
+    }
+    const el = settingsAnchorRef.current;
+    if (!el) return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      const pad = 12;
+      const w = Math.min(560, Math.max(300, window.innerWidth - pad * 2));
+      let left = r.right - w;
+      if (left < pad) left = pad;
+      if (left + w > window.innerWidth - pad) left = Math.max(pad, window.innerWidth - pad - w);
+      const top = r.bottom + 8;
+      const maxHeight = Math.max(260, Math.min(580, window.innerHeight - top - pad));
+      setSettingsDropdownLayout({ top, left, width: w, maxHeight });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+    };
+  }, [panel, session?.user]);
+
+  useEffect(() => {
+    if (panel !== "settings") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPanel("none");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [panel]);
 
   useEffect(() => {
     if (isEmbeddedExtension()) {
@@ -785,10 +829,12 @@ export default function DashboardClient() {
                 </svg>
               </button>
               <button
+                ref={settingsAnchorRef}
                 type="button"
                 className="focal-obs-icon-btn focal-obs-icon-btn--settings"
                 aria-label="Open settings"
                 aria-expanded={panel === "settings"}
+                aria-haspopup="dialog"
                 onClick={() => setPanel((p) => (p === "settings" ? "none" : "settings"))}
                 title="Settings"
               >
@@ -975,26 +1021,50 @@ export default function DashboardClient() {
         {calendarEvents ? <CalendarList events={calendarEvents} /> : null}
       </SlidePanel>
 
-      <SlidePanel
-        open={panel === "settings"}
-        onClose={() => setPanel("none")}
-        anchor="bottomLeft"
-        hideHeader
-        wide
-      >
-        {session?.user ? (
-          <DashboardSettingsPanel
-            session={session}
-            supabase={supabase}
-            profile={profile}
-            memento={memento}
-            onSaveProfile={saveProfilePatch}
-            onMementoChange={setMemento}
-            onResetAll={() => void resetAllFromSettings()}
-            onClose={() => setPanel("none")}
-          />
-        ) : null}
-      </SlidePanel>
+      {panel === "settings" && session?.user && settingsDropdownLayout && typeof document !== "undefined"
+        ? createPortal(
+            <>
+              <div
+                className="focal-settings-drop-backdrop"
+                aria-hidden
+                onClick={() => setPanel("none")}
+              />
+              <div
+                className="focal-settings-dropdown"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Settings"
+                style={{
+                  position: "fixed",
+                  top: settingsDropdownLayout.top,
+                  left: settingsDropdownLayout.left,
+                  width: settingsDropdownLayout.width,
+                  maxHeight: settingsDropdownLayout.maxHeight,
+                }}
+              >
+                <button
+                  type="button"
+                  className="focal-settings-dropdown-close"
+                  aria-label="Close settings"
+                  onClick={() => setPanel("none")}
+                >
+                  ×
+                </button>
+                <DashboardSettingsPanel
+                  session={session}
+                  supabase={supabase}
+                  profile={profile}
+                  memento={memento}
+                  onSaveProfile={saveProfilePatch}
+                  onMementoChange={setMemento}
+                  onResetAll={() => void resetAllFromSettings()}
+                  onClose={() => setPanel("none")}
+                />
+              </div>
+            </>,
+            document.body
+          )
+        : null}
 
       {session?.user && taskLists.length > 0 ? (
         <TasksDock
