@@ -99,6 +99,7 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.2);
   color: var(--text);
+  cursor: pointer;
   transition: filter 0.15s ease, opacity 0.15s ease;
 }
 
@@ -1318,34 +1319,213 @@ button {
   border-left: 2px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Homepage memento card */
-.focal-panel-static {
-  width: min(560px, 94vw);
-  margin: 2rem auto 0;
-  padding: 1.35rem 1.35rem 1.5rem;
-  border-radius: 16px;
-  background: rgba(12, 12, 16, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
-  text-align: left;
+/* Homepage memento — high-visibility “wake up” card */
+.focal-home-memento {
+  width: min(640px, 94vw);
+  margin: 1rem auto 1.15rem;
+  text-align: center;
 }
 
-.focal-home-memento-title {
-  margin: 0 0 0.35rem;
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+.focal-memento-urgent {
+  position: relative;
+  padding: 1.35rem 1.25rem 1.25rem;
+  border-radius: 18px;
+  background: linear-gradient(165deg, rgba(18, 8, 10, 0.92) 0%, rgba(6, 6, 10, 0.94) 100%);
+  border: 1px solid rgba(255, 80, 80, 0.35);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 20px 56px rgba(0, 0, 0, 0.55),
+    0 0 48px rgba(180, 40, 40, 0.12);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  animation: focalUrgentGlow 4.5s ease-in-out infinite;
+}
+
+@keyframes focalUrgentGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.5),
+      0 20px 56px rgba(0, 0, 0, 0.55),
+      0 0 40px rgba(180, 40, 40, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.5),
+      0 22px 60px rgba(0, 0, 0, 0.58),
+      0 0 56px rgba(220, 60, 60, 0.2);
+  }
+}
+
+.focal-memento-urgent-strip {
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 3px;
+  border-radius: 0 0 6px 6px;
+  background: linear-gradient(90deg, transparent, #f87171, #fb7185, transparent);
+  opacity: 0.95;
+}
+
+.focal-memento-urgent-eyebrow {
+  margin: 0.35rem 0 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(254, 202, 202, 0.85);
 }
 
-.focal-home-memento-lead {
-  margin: 0 0 1rem;
+.focal-memento-urgent-head {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.35rem, 4.2vw, 1.85rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.5);
+}
+
+.focal-memento-urgent-body {
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.78);
+  max-width: 34rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.focal-memento-urgent-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 22rem;
+  margin: 0 auto;
+  padding: 0.75rem 1.25rem;
+  border: none;
+  border-radius: 12px;
   font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #0a0606;
+  background: linear-gradient(180deg, #fecaca, #f87171);
+  box-shadow: 0 6px 24px rgba(248, 113, 113, 0.45);
+}
+
+.focal-memento-urgent-btn:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.focal-memento-urgent-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.focal-memento-urgent-hero {
+  margin-bottom: 1rem;
+}
+
+.focal-memento-urgent-huge-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.focal-memento-urgent-huge {
+  font-size: clamp(2.75rem, 11vw, 4.5rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  background: linear-gradient(180deg, #fff 30%, #fecdd3 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 4px 28px rgba(0, 0, 0, 0.45));
+}
+
+.focal-memento-urgent-unit {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: clamp(0.75rem, 2.5vw, 0.88rem);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(254, 202, 202, 0.9);
+}
+
+.focal-memento-urgent-shout {
+  margin: 0.85rem 0 0.35rem;
+  font-size: clamp(1rem, 3vw, 1.2rem);
+  font-weight: 700;
+  color: #fecaca;
+  letter-spacing: 0.02em;
+}
+
+.focal-memento-urgent-hook {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.76);
+  max-width: 36rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.focal-memento-urgent-bar-wrap {
+  text-align: left;
+  max-width: 28rem;
+  margin: 0 auto;
+}
+
+.focal-memento-urgent-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.focal-memento-urgent-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #7f1d1d, #ef4444, #fca5a5);
+  box-shadow: 0 0 16px rgba(248, 113, 113, 0.5);
+  transition: width 0.4s ease;
+}
+
+.focal-memento-urgent-bar-label {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.04em;
+}
+
+.focal-memento-urgent-details {
+  margin-top: 0.75rem;
+  text-align: left;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 0.65rem;
+}
+
+.focal-memento-urgent-details summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.55);
+  list-style: none;
+}
+
+.focal-memento-urgent-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.focal-memento-urgent-details[open] summary {
+  margin-bottom: 0.65rem;
   color: rgba(255, 255, 255, 0.72);
-  line-height: 1.45;
 }
 
 .focal-home-memento-grid {
@@ -1367,45 +1547,99 @@ button {
   margin-bottom: 0.25rem;
 }
 
-.focal-home-memento-stats {
-  margin-top: 1.15rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+/* Dashboard settings popup (gear, bottom-left) */
+.focal-panel-body--flush {
+  padding: 0;
+  max-height: min(74vh, 700px);
+  overflow: hidden;
 }
 
-.focal-home-memento-big {
-  font-size: clamp(2.2rem, 6vw, 2.85rem);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+.focal-settings-popup {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: min(74vh, 700px);
+}
+
+.focal-settings-popup-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.focal-settings-popup-title {
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+
+.focal-settings-popup-grid {
+  display: grid;
+  grid-template-columns: minmax(108px, 32%) 1fr;
+  min-height: 0;
+  flex: 1;
+}
+
+.focal-settings-popup-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.65rem 0.5rem 0.75rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+  overflow-y: auto;
+}
+
+.focal-settings-popup-nav button {
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.focal-settings-popup-nav button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.focal-settings-popup-nav button.active {
+  background: rgba(255, 255, 255, 0.12);
   color: #fff;
-  line-height: 1.1;
+  font-weight: 600;
 }
 
-.focal-home-memento-big small {
-  display: block;
-  margin-top: 0.25rem;
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.55);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.focal-settings-popup-scroll {
+  overflow-y: auto;
+  padding: 0.5rem 0.85rem 1rem;
+  min-height: 0;
 }
 
-.focal-home-memento-sub {
-  margin: 0.65rem 0 0.75rem;
-  font-size: 0.88rem;
-  color: rgba(255, 255, 255, 0.72);
-  line-height: 1.45;
+.focal-settings-popup-scroll .focal-settings-section h1 {
+  font-size: 1.15rem;
 }
 
-.focal-home-memento-bar {
-  margin-top: 0.35rem;
+.focal-settings-popup-scroll .focal-settings-h2 {
+  font-size: 0.95rem;
 }
 
-.focal-home-memento-foot {
-  margin: 0.5rem 0 0;
-  font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.55);
+@media (max-width: 520px) {
+  .focal-settings-popup-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .focal-settings-popup-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
 }
 
 /* Full settings page (sidebar + main) */

@@ -65,11 +65,16 @@ export function HomeMementoCard({
 
   if (!primary) {
     return (
-      <div className="focal-home-memento focal-panel-static">
-        <h2 className="focal-home-memento-title">Memento mori</h2>
-        <p className="focal-home-memento-lead">Add your date of birth and an expected lifespan to see roughly how many days remain — framed as appreciation, not dread.</p>
-        <button className="focal-btn primary" type="button" disabled={busy} onClick={() => void ensureSelf()}>
-          {busy ? "Saving…" : "Enter my details"}
+      <div className="focal-home-memento focal-memento-urgent">
+        <div className="focal-memento-urgent-strip" aria-hidden />
+        <p className="focal-memento-urgent-eyebrow">Memento mori</p>
+        <h2 className="focal-memento-urgent-head">You haven&apos;t faced the clock yet.</h2>
+        <p className="focal-memento-urgent-body">
+          Most people drift until time announces itself. Put in your birth date and a life expectancy — not to despair, but
+          to <strong>decide</strong> what today is worth.
+        </p>
+        <button className="focal-memento-urgent-btn" type="button" disabled={busy} onClick={() => void ensureSelf()}>
+          {busy ? "Saving…" : "Enter my numbers — start the clock"}
         </button>
       </div>
     );
@@ -78,55 +83,66 @@ export function HomeMementoCard({
   const dobValue =
     primary.birth_date && primary.birth_date.length >= 10 ? primary.birth_date.slice(0, 10) : `${primary.birth_year}-01-01`;
 
+  const daysLeft = stats?.daysRemainingApprox ?? 0;
+  const progressPct = stats ? Math.round(stats.progress * 100) : 0;
+
   return (
-    <div className="focal-home-memento focal-panel-static">
-      <h2 className="focal-home-memento-title">Memento mori</h2>
-      <p className="focal-home-memento-lead">A quiet estimate of the horizon — so today stays vivid.</p>
-      <div className="focal-home-memento-grid">
-        <label>
-          <span>Label</span>
-          <input className="focal-input" value={primary.label} onChange={(e) => void patchPrimary({ label: e.target.value })} />
-        </label>
-        <label>
-          <span>Date of birth</span>
-          <input
-            className="focal-input"
-            type="date"
-            value={dobValue}
-            onChange={(e) => {
-              const v = e.target.value;
-              void patchPrimary({ birth_date: v || null });
-            }}
-          />
-        </label>
-        <label>
-          <span>Life expectancy (years)</span>
-          <input
-            className="focal-input"
-            type="number"
-            min={60}
-            max={120}
-            value={primary.life_expectancy ?? 82}
-            onChange={(e) => void patchPrimary({ life_expectancy: Number(e.target.value) })}
-          />
-        </label>
-      </div>
+    <div className="focal-home-memento focal-memento-urgent">
+      <div className="focal-memento-urgent-strip" aria-hidden />
+      <p className="focal-memento-urgent-eyebrow">Memento mori · {primary.label}</p>
+
       {stats ? (
-        <div className="focal-home-memento-stats">
-          <div className="focal-home-memento-big">
-            ~{stats.daysRemainingApprox.toLocaleString()}
-            <small>days remaining</small>
+        <div className="focal-memento-urgent-hero">
+          <div className="focal-memento-urgent-huge-wrap" title="Approximate days left in your modeled lifespan">
+            <span className="focal-memento-urgent-huge">{daysLeft.toLocaleString()}</span>
+            <span className="focal-memento-urgent-unit">days left</span>
           </div>
-          <p className="focal-home-memento-sub">
-            About {stats.yearsMonthsRemaining.years} years and {stats.yearsMonthsRemaining.months} months — and you&apos;ve
-            lived roughly {stats.daysTogetherApprox.toLocaleString()} days so far.
+          <p className="focal-memento-urgent-shout">This number only goes down.</p>
+          <p className="focal-memento-urgent-hook">
+            About {stats.yearsMonthsRemaining.years}y {stats.yearsMonthsRemaining.months}m remaining · you have already lived
+            roughly <strong>{stats.daysTogetherApprox.toLocaleString()}</strong> days. What will you do with the next one?
           </p>
-          <div className="focal-progress focal-home-memento-bar">
-            <span style={{ width: `${Math.round(stats.progress * 100)}%` }} />
+          <div className="focal-memento-urgent-bar-wrap">
+            <div className="focal-memento-urgent-bar">
+              <span style={{ width: `${progressPct}%` }} />
+            </div>
+            <span className="focal-memento-urgent-bar-label">{progressPct}% of expected life lived (model)</span>
           </div>
-          <p className="focal-home-memento-foot">Make them count.</p>
         </div>
       ) : null}
+
+      <details className="focal-memento-urgent-details">
+        <summary>Adjust dates &amp; expectancy</summary>
+        <div className="focal-home-memento-grid">
+          <label>
+            <span>Label</span>
+            <input className="focal-input" value={primary.label} onChange={(e) => void patchPrimary({ label: e.target.value })} />
+          </label>
+          <label>
+            <span>Date of birth</span>
+            <input
+              className="focal-input"
+              type="date"
+              value={dobValue}
+              onChange={(e) => {
+                const v = e.target.value;
+                void patchPrimary({ birth_date: v || null });
+              }}
+            />
+          </label>
+          <label>
+            <span>Life expectancy (years)</span>
+            <input
+              className="focal-input"
+              type="number"
+              min={60}
+              max={120}
+              value={primary.life_expectancy ?? 82}
+              onChange={(e) => void patchPrimary({ life_expectancy: Number(e.target.value) })}
+            />
+          </label>
+        </div>
+      </details>
     </div>
   );
 }

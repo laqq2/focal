@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import {
   BLOCKER_PRESETS,
@@ -41,6 +41,7 @@ import { fetchTodayEvents, type CalendarEventItem } from "@/lib/calendar";
 import { FocusOverlay, type FocusSessionEndPayload } from "@/components/FocusOverlay";
 import { HomeMementoCard } from "@/components/HomeMementoCard";
 import { TasksDock } from "@/components/TasksDock";
+import { DashboardSettingsPanel } from "@/components/DashboardSettingsPanel";
 
 const LINKS_KEY = "focal_links_v1";
 
@@ -83,6 +84,7 @@ function defaultProfile(userId: string): ProfileRow {
 }
 
 export default function DashboardClient() {
+  const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowser(), []);
   const [session, setSession] = useState<Session | null>(null);
   const [booting, setBooting] = useState(true);
@@ -104,7 +106,7 @@ export default function DashboardClient() {
   const [weather, setWeather] = useState<WeatherState | null>(null);
   const [bgBroken, setBgBroken] = useState(false);
 
-  const [panel, setPanel] = useState<"none" | "blocker" | "calendar" | "links" | "focusHistory">("none");
+  const [panel, setPanel] = useState<"none" | "blocker" | "calendar" | "links" | "focusHistory" | "settings">("none");
   const [focusOpen, setFocusOpen] = useState(false);
   const [focusRunning, setFocusRunning] = useState(false);
   const [focusLogs, setFocusLogs] = useState<FocusLogRow[]>([]);
@@ -418,6 +420,15 @@ export default function DashboardClient() {
     }
   };
 
+  const resetAllFromSettings = async () => {
+    if (!confirm("Clear local caches and sign out?")) return;
+    localStorage.clear();
+    sessionStorage.clear();
+    await supabase.auth.signOut();
+    setPanel("none");
+    router.replace("/app");
+  };
+
   const addBlocked = async (domain: string) => {
     const clean = domain.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0];
     if (!clean || !session?.user) return;
@@ -619,12 +630,6 @@ export default function DashboardClient() {
                 </span>
                 Cal
               </button>
-              <Link href="/settings" className="focal-corner-btn" aria-label="Settings">
-                <span className="focal-corner-ico" aria-hidden>
-                  ⚙️
-                </span>
-                Settings
-              </Link>
             </div>
           </div>
         </div>
@@ -633,6 +638,9 @@ export default function DashboardClient() {
         <div className="focal-greeting">
           {formatGreetingLine(profile?.greeting_template ?? null, name, clock.getHours())}
         </div>
+        {session?.user ? (
+          <HomeMementoCard memento={memento} userId={session.user.id} supabase={supabase} onChange={setMemento} />
+        ) : null}
         <div className="focal-goal">
           <input
             value={goalText}
@@ -640,17 +648,20 @@ export default function DashboardClient() {
             placeholder="What is your main goal for today?"
           />
         </div>
-        {session?.user ? (
-          <HomeMementoCard memento={memento} userId={session.user.id} supabase={supabase} onChange={setMemento} />
-        ) : null}
       </div>
 
       <div className="focal-bottom">
         <div className="focal-credit">
           <span>Li Jiang, China</span>
-          <Link href="/settings" className="focal-icon-btn focal-bottom-settings" aria-label="Open settings">
+          <button
+            type="button"
+            className="focal-icon-btn focal-bottom-settings"
+            aria-label="Open settings"
+            aria-expanded={panel === "settings"}
+            onClick={() => setPanel((p) => (p === "settings" ? "none" : "settings"))}
+          >
             ⚙️
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -721,6 +732,27 @@ export default function DashboardClient() {
         ) : null}
         {calendarError && calendarError !== "missing_token" ? <p style={{ color: "#fecaca" }}>{calendarError}</p> : null}
         {calendarEvents ? <CalendarList events={calendarEvents} /> : null}
+      </SlidePanel>
+
+      <SlidePanel
+        open={panel === "settings"}
+        onClose={() => setPanel("none")}
+        anchor="bottomLeft"
+        hideHeader
+        wide
+      >
+        {session?.user ? (
+          <DashboardSettingsPanel
+            session={session}
+            supabase={supabase}
+            profile={profile}
+            memento={memento}
+            onSaveProfile={saveProfilePatch}
+            onMementoChange={setMemento}
+            onResetAll={() => void resetAllFromSettings()}
+            onClose={() => setPanel("none")}
+          />
+        ) : null}
       </SlidePanel>
 
       <SlidePanel open={panel === "links"} onClose={() => setPanel("none")} anchor="left" title="Links">
@@ -824,35 +856,47 @@ function SlidePanel({
   anchor,
   title,
   wide,
+  hideHeader,
   children,
 }: {
   open: boolean;
   onClose: () => void;
-  anchor: "left" | "right";
-  title: string;
+  anchor: "left" | "right" | "bottomLeft";
+  title?: string;
   wide?: boolean;
+  hideHeader?: boolean;
   children: React.ReactNode;
 }) {
   if (!open) return null;
-  return (
-    <>
-      <div className="focal-panel-backdrop" onClick={onClose} />
-      <div
-        className="focal-panel"
-        style={{
+  const positionStyle =
+    anchor === "bottomLeft"
+      ? {
+          top: "auto" as const,
+          bottom: "max(5.5rem, calc(env(safe-area-inset-bottom, 0px) + 4.5rem))",
+          left: 16,
+          right: "auto" as const,
+          width: wide ? "min(520px, calc(100vw - 32px))" : "min(480px, calc(100vw - 32px))",
+          maxHeight: "min(76vh, 700px)",
+        }
+      : {
           top: 88,
           [anchor]: 16,
           width: wide ? "min(560px, 94vw)" : "min(420px, 94vw)",
           maxHeight: "78vh",
-        }}
-      >
-        <div className="focal-panel-header">
-          <strong>{title}</strong>
-          <button className="focal-btn" type="button" onClick={onClose}>
-            Close
-          </button>
-        </div>
-        <div className="focal-panel-body">{children}</div>
+        };
+  return (
+    <>
+      <div className="focal-panel-backdrop" onClick={onClose} />
+      <div className="focal-panel" style={positionStyle}>
+        {hideHeader ? null : (
+          <div className="focal-panel-header">
+            <strong>{title}</strong>
+            <button className="focal-btn" type="button" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        )}
+        <div className={hideHeader ? "focal-panel-body focal-panel-body--flush" : "focal-panel-body"}>{children}</div>
       </div>
     </>
   );
