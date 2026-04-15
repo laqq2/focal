@@ -193,6 +193,7 @@ button {
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 6;
   padding: 1rem 1.25rem 1.25rem;
   display: flex;
   justify-content: space-between;
@@ -214,7 +215,7 @@ button {
 
 .focal-bottom-settings {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   text-decoration: none;
 }
 
@@ -222,6 +223,7 @@ button {
   position: fixed;
   left: 50%;
   bottom: 1.1rem;
+  z-index: 5;
   transform: translateX(-50%);
   max-width: min(720px, 92vw);
   text-align: center;

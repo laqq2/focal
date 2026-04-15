@@ -39,9 +39,8 @@ import {
 } from "@/lib/sync";
 import { fetchMelbourneWeather, fetchWeatherByCoords, type WeatherState } from "@/lib/weather";
 import { fetchTodayEvents, type CalendarEventItem } from "@/lib/calendar";
-import { authLoginPageUrl, authRedirectToApp, getAuthAppOrigin } from "@/lib/auth-origin";
+import { authLoginPageUrl, authRedirectToApp } from "@/lib/auth-origin";
 import { signInWithGoogleOAuth } from "@/lib/google-oauth";
-import { isOAuthSessionMessage } from "@/components/OAuthPopupBridge";
 import { FocusOverlay, type FocusSessionEndPayload } from "@/components/FocusOverlay";
 import { HomeMementoCard } from "@/components/HomeMementoCard";
 import { TasksDock } from "@/components/TasksDock";
@@ -289,27 +288,7 @@ export default function DashboardClient() {
     };
   }, [supabase, today]);
 
-  /** Extension iframe: OAuth popup posts session here (storage may be partitioned from the popup). */
-  useEffect(() => {
-    if (!isEmbeddedExtension()) return;
-    const onMsg = (e: MessageEvent) => {
-      if (e.origin !== getAuthAppOrigin()) return;
-      if (!isOAuthSessionMessage(e.data)) return;
-      const { access_token, refresh_token, expires_at } = e.data.payload;
-      void supabase.auth.setSession({ access_token, refresh_token }).then(({ data, error }) => {
-        if (error || !data.session) return;
-        notifyExtensionSession({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-          expires_at: data.session.expires_at ?? expires_at,
-        });
-      });
-    };
-    window.addEventListener("message", onMsg);
-    return () => window.removeEventListener("message", onMsg);
-  }, [supabase]);
-
-  /** Extension iframe: backup sync if localStorage is shared with the popup. */
+  /** Extension iframe: backup sync if localStorage is shared with the login tab. */
   useEffect(() => {
     if (!isEmbeddedExtension()) return;
     const lastRef = { token: null as string | null };
@@ -359,32 +338,6 @@ export default function DashboardClient() {
     const t = window.setTimeout(() => setExtensionLoginRefreshHint(true), 10_000);
     return () => window.clearTimeout(t);
   }, [extensionLoginTabOpenedAt, session]);
-
-  /** Signing in on a normal tab: ping the extension iframe (same origin) to pull the session. */
-  useEffect(() => {
-    if (isEmbeddedExtension()) return;
-    if (!session) return;
-    if (typeof BroadcastChannel === "undefined") return;
-    try {
-      const bc = new BroadcastChannel("focal-auth-sync");
-      bc.postMessage({ type: "focal-signed-in" });
-      bc.close();
-    } catch {
-      /* ignore */
-    }
-  }, [session?.access_token]);
-
-  useEffect(() => {
-    if (!isEmbeddedExtension()) return;
-    if (typeof BroadcastChannel === "undefined") return;
-    const bc = new BroadcastChannel("focal-auth-sync");
-    bc.onmessage = () => {
-      void supabase.auth.getSession().then(({ data }) => {
-        if (data.session) setSession(data.session);
-      });
-    };
-    return () => bc.close();
-  }, [supabase]);
 
   useEffect(() => {
     if (!session?.user) return;

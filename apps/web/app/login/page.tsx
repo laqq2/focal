@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowser } from "@/lib/supabase-browser";
 import { authRedirectToApp } from "@/lib/auth-origin";
-import { signInWithGoogleOAuth } from "@/lib/google-oauth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,7 +22,14 @@ export default function LoginPage() {
     setBusy(true);
     setStatus(null);
     const supabase = createSupabaseBrowser();
-    const { error } = await signInWithGoogleOAuth(supabase);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: authRedirectToApp(),
+        scopes: "https://www.googleapis.com/auth/calendar.readonly",
+        queryParams: { access_type: "offline", prompt: "consent" },
+      },
+    });
     if (error) setStatus(error.message);
     setBusy(false);
   };

@@ -52,7 +52,7 @@ Add your background image as `apps/web/public/background.jpg` (see `public/BACKG
 
 ## Chrome extension
 
-1. Edit `apps/extension/config.json` and set **`appUrl`** to the same deployed URL as **`NEXT_PUBLIC_APP_ORIGIN` + `/app`** (for example `https://focal.example.com/app`). Local dev can use `http://localhost:3000/app`. **Sign-in from the new tab** uses **“Sign in to Focal”** → the extension parent calls **`chrome.tabs.create`** to open your hosted **`/login`** (Chrome blocks popups on the new tab page). After you sign in on that tab, the iframe picks up the session via **storage polling / `BroadcastChannel`**, or use **“I’ve signed in — refresh”** if it does not connect within ~10 seconds.
+1. Edit `apps/extension/config.json` and set **`appUrl`** to the same deployed URL as **`NEXT_PUBLIC_APP_ORIGIN` + `/app`** (for example `https://focal.example.com/app`). Local dev can use `http://localhost:3000/app`. The new-tab shell automatically appends **`focal_embed=1`** to the iframe URL so the web app can tell extension context from other iframes. **Sign-in from the new tab** uses **“Sign in to Focal”** → the extension parent calls **`chrome.tabs.create`** to open your hosted **`/login`**. After you sign in on that tab, the iframe picks up the session via **storage polling / focus**, or use **“I’ve signed in — refresh”** if it does not connect within ~10 seconds.
 
 2. Open `chrome://extensions`, enable **Developer mode**, **Load unpacked**, choose `focal/apps/extension`.
 

@@ -9,13 +9,26 @@ async function loadConfig() {
   return json.appUrl || "http://localhost:3000/app";
 }
 
+/** Must match `FOCAL_EMBED_SEARCH_PARAM` in the web app (`extension-bridge.ts`). */
+function withFocalEmbedParam(url) {
+  try {
+    const u = new URL(url);
+    if (!u.searchParams.get("focal_embed")) u.searchParams.set("focal_embed", "1");
+    return u.toString();
+  } catch {
+    const join = url.includes("?") ? "&" : "?";
+    return url.includes("focal_embed=") ? url : `${url}${join}focal_embed=1`;
+  }
+}
+
 function sendToFrame(message) {
   if (!frame?.contentWindow) return;
   frame.contentWindow.postMessage(message, "*");
 }
 
 chrome.storage.local.get(["focal_session", "focal_app_url"], async (data) => {
-  const src = data.focal_app_url || (await loadConfig());
+  const raw = data.focal_app_url || (await loadConfig());
+  const src = withFocalEmbedParam(raw);
   if (frame) frame.src = src;
 });
 

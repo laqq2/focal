@@ -2,10 +2,28 @@ import type { BridgeMessage, SessionPayload, BlockerPayload } from "@focal/share
 
 const PARENT_TARGET = "*";
 
+/** Query flag appended by `apps/extension/newtab.js` to the iframe URL. */
+export const FOCAL_EMBED_SEARCH_PARAM = "focal_embed";
+
+/**
+ * True only when this document is the Focal **extension** new-tab iframe — not any
+ * other iframe (which would incorrectly block normal OAuth).
+ */
 export function isEmbeddedExtension(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    return window.parent !== window;
+    if (window.parent === window) return false;
+    const v = new URLSearchParams(window.location.search).get(FOCAL_EMBED_SEARCH_PARAM);
+    if (v === "1" || v === "true") return true;
+    const ref = typeof document !== "undefined" ? document.referrer : "";
+    if (
+      ref.startsWith("chrome-extension://") ||
+      ref.startsWith("moz-extension://") ||
+      ref.startsWith("safari-web-extension://")
+    ) {
+      return true;
+    }
+    return false;
   } catch {
     return false;
   }
