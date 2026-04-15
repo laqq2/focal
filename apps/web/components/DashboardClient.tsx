@@ -719,8 +719,6 @@ export default function DashboardClient() {
             </h2>
             <div className="focal-obs-side-value">{formatClock(clock, profile?.clock_format ?? "24hr")}</div>
           </section>
-
-          <p className="focal-obs-focus-stat">{focusMinutesToday}m focused today</p>
         </aside>
 
         <main className="focal-obs-main">
@@ -747,15 +745,15 @@ export default function DashboardClient() {
               </button>
               <button
                 type="button"
-                className="focal-obs-icon-btn"
+                className="focal-obs-icon-btn focal-obs-icon-btn--settings"
                 aria-label="Open settings"
                 aria-expanded={panel === "settings"}
                 onClick={() => setPanel((p) => (p === "settings" ? "none" : "settings"))}
                 title="Settings"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
                   <circle cx="12" cy="12" r="3" />
-                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" strokeLinecap="round" />
                 </svg>
               </button>
             </div>
@@ -896,10 +894,16 @@ export default function DashboardClient() {
         </main>
       </div>
 
-      <div className="focal-bottom">
-        <div className="focal-credit">
-          <span>Li Jiang, China</span>
+      <div className="focal-bottom focal-bottom--obs">
+        <div className="focal-bottom-slot focal-bottom-slot--left">
+          <span className="focal-credit">Li Jiang, China</span>
         </div>
+        <div className="focal-bottom-slot focal-bottom-slot--center">
+          <span className="focal-obs-focus-stat-pill" aria-live="polite">
+            {focusMinutesToday}m focused today
+          </span>
+        </div>
+        <div className="focal-bottom-slot focal-bottom-slot--right" aria-hidden="true" />
       </div>
 
       {offlineFlash ? <div className="focal-offline">Offline — changes will sync</div> : null}

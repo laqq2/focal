@@ -210,6 +210,54 @@ button {
   pointer-events: auto;
 }
 
+.focal-bottom--obs {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 100%;
+  gap: 0.75rem;
+}
+
+.focal-bottom-slot {
+  min-width: 0;
+  pointer-events: auto;
+}
+
+.focal-bottom-slot--left {
+  flex: 1 1 0;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.focal-bottom-slot--center {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+}
+
+.focal-bottom-slot--right {
+  flex: 1 1 0;
+}
+
+.focal-obs-focus-stat-pill {
+  display: inline-block;
+  padding: 0.4rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  max-width: min(100vw - 8rem, 320px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .focal-credit {
   display: flex;
   align-items: center;
@@ -1907,26 +1955,53 @@ button {
 }
 
 .focal-obs-sidebar {
-  width: 260px;
+  position: relative;
+  width: clamp(300px, 28vw, 460px);
   flex-shrink: 0;
   min-height: 100vh;
-  padding: 1.35rem 1.25rem 1.5rem;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 2rem clamp(1.35rem, 2.2vw, 2.25rem) 2.25rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  background: rgba(10, 10, 10, 0.35);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  gap: 1.35rem;
+  /* Blend into the photo: soft vignette + feather to main, not a separate “panel” */
+  background: linear-gradient(
+    105deg,
+    rgba(6, 6, 8, 0.58) 0%,
+    rgba(8, 8, 11, 0.38) 55%,
+    rgba(10, 10, 14, 0.12) 88%,
+    rgba(10, 10, 14, 0) 100%
+  );
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  border-right: none;
+}
+
+.focal-obs-sidebar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.07) 22%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.06) 78%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  pointer-events: none;
 }
 
 .focal-obs-brand {
   font-family: var(--focal-display);
-  font-size: 1.35rem;
+  font-size: clamp(1.45rem, 2.1vw, 1.85rem);
   font-weight: 600;
+  font-style: italic;
   letter-spacing: 0.02em;
   color: #fff;
-  line-height: 1.15;
+  line-height: 1.12;
 }
 
 .focal-obs-nav {
@@ -1984,9 +2059,9 @@ button {
 
 .focal-obs-date-long {
   margin-top: 0.2rem;
-  font-size: 0.88rem;
-  color: rgba(255, 255, 255, 0.82);
-  line-height: 1.35;
+  font-size: clamp(0.92rem, 1.15vw, 1.02rem);
+  color: rgba(255, 255, 255, 0.84);
+  line-height: 1.4;
 }
 
 .focal-obs-greeting {
@@ -2004,19 +2079,19 @@ button {
 
 .focal-obs-side-label {
   margin: 0;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--accent-gold-soft);
 }
 
 .focal-obs-side-value {
-  font-size: 1.55rem;
+  font-size: clamp(1.65rem, 2.4vw, 2.15rem);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: #fff;
-  line-height: 1.1;
+  line-height: 1.08;
 }
 
 .focal-obs-side-value.subtle {
@@ -2087,13 +2162,6 @@ button {
   font-size: 0.78rem;
   color: rgba(255, 255, 255, 0.45);
   line-height: 1.4;
-}
-
-.focal-obs-focus-stat {
-  margin: 0;
-  margin-top: auto;
-  font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.48);
 }
 
 .focal-obs-main {
@@ -2170,6 +2238,10 @@ button {
   color: var(--accent-rose);
   border-color: rgba(220, 150, 140, 0.35);
   background: rgba(0, 0, 0, 0.35);
+}
+
+.focal-obs-icon-btn--settings svg {
+  display: block;
 }
 
 .focal-obs-hero-wrap {
@@ -2603,13 +2675,18 @@ button {
   }
   .focal-obs-sidebar {
     width: 100%;
-    border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    min-height: 0;
+    padding: 1.35rem 1.25rem 1.5rem;
+    gap: 1rem;
+    background: linear-gradient(180deg, rgba(6, 6, 8, 0.5) 0%, rgba(8, 8, 11, 0.22) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     flex-direction: row;
     flex-wrap: wrap;
     align-items: flex-start;
-    gap: 0.75rem 1rem;
     max-height: none;
+  }
+  .focal-obs-sidebar::after {
+    display: none;
   }
   .focal-obs-hero-wrap {
     padding-top: 0.5rem;
