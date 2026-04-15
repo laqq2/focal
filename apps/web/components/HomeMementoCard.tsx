@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MementoEntryRow } from "@focal/shared";
 import { computeMementoStats, yearFromBirthDate } from "@focal/shared";
 import type { createSupabaseBrowser } from "@/lib/supabase-browser";
@@ -22,6 +22,10 @@ export function HomeMementoCard({
   compact?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
+  const mementoRef = useRef(memento);
+  useEffect(() => {
+    mementoRef.current = memento;
+  }, [memento]);
 
   const primary = memento[0];
 
@@ -48,22 +52,36 @@ export function HomeMementoCard({
       };
       const { data, error } = await supabase.from("memento_entries").insert(row).select("*");
       const created = data?.[0] as MementoEntryRow | undefined;
-      if (!error && created) onChange([created, ...memento]);
-      else onChange([row, ...memento]);
+      if (!error && created) {
+        const next = [created, ...mementoRef.current];
+        mementoRef.current = next;
+        onChange(next);
+      } else {
+        const next = [row, ...mementoRef.current];
+        mementoRef.current = next;
+        onChange(next);
+      }
     } finally {
       setBusy(false);
     }
   };
 
   const patchPrimary = async (patch: Partial<MementoEntryRow>) => {
-    if (!primary) return;
-    const row = { ...primary, ...patch };
+    const curPrimary = mementoRef.current[0];
+    if (!curPrimary) return;
+    const prevSnapshot = mementoRef.current;
+    const row = { ...curPrimary, ...patch };
     if (patch.birth_date !== undefined) {
-      row.birth_year = yearFromBirthDate(patch.birth_date ?? null, primary.birth_year);
+      row.birth_year = yearFromBirthDate(patch.birth_date ?? null, curPrimary.birth_year);
     }
-    const next = [row, ...memento.slice(1)];
+    const next = [row, ...prevSnapshot.slice(1)];
+    mementoRef.current = next;
     onChange(next);
-    await supabase.from("memento_entries").upsert(row, { onConflict: "id" });
+    const { error } = await supabase.from("memento_entries").upsert(row, { onConflict: "id" });
+    if (error) {
+      mementoRef.current = prevSnapshot;
+      onChange(prevSnapshot);
+    }
   };
 
   if (!primary) {
@@ -146,7 +164,13 @@ export function HomeMementoCard({
               min={60}
               max={120}
               value={primary.life_expectancy ?? 82}
-              onChange={(e) => void patchPrimary({ life_expectancy: Number(e.target.value) })}
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === "") return;
+                const n = Number(raw);
+                if (Number.isNaN(n)) return;
+                void patchPrimary({ life_expectancy: Math.min(120, Math.max(60, n)) });
+              }}
             />
           </label>
         </div>

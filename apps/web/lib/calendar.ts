@@ -23,27 +23,7 @@ function parseEventDate(value?: { dateTime?: string; date?: string }): Date | nu
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-export async function fetchTodayEvents(accessToken: string): Promise<CalendarEventItem[]> {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  const params = new URLSearchParams({
-    timeMin: start.toISOString(),
-    timeMax: end.toISOString(),
-    singleEvents: "true",
-    orderBy: "startTime",
-    maxResults: "50",
-  });
-  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Calendar request failed");
-  }
-  const json = (await res.json()) as { items?: GoogleEvent[] };
-  const items = json.items ?? [];
+function mapGoogleItems(items: GoogleEvent[]): CalendarEventItem[] {
   const mapped: CalendarEventItem[] = [];
   for (const ev of items) {
     const s = parseEventDate(ev.start);
@@ -59,4 +39,39 @@ export async function fetchTodayEvents(accessToken: string): Promise<CalendarEve
     });
   }
   return mapped.sort((a, b) => a.start.getTime() - b.start.getTime());
+}
+
+async function fetchPrimaryEvents(accessToken: string, timeMin: Date, timeMax: Date, maxResults: string): Promise<CalendarEventItem[]> {
+  const params = new URLSearchParams({
+    timeMin: timeMin.toISOString(),
+    timeMax: timeMax.toISOString(),
+    singleEvents: "true",
+    orderBy: "startTime",
+    maxResults,
+  });
+  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || "Calendar request failed");
+  }
+  const json = (await res.json()) as { items?: GoogleEvent[] };
+  return mapGoogleItems(json.items ?? []);
+}
+
+/** Today in the user's local timezone (for day summaries). */
+export async function fetchTodayEvents(accessToken: string): Promise<CalendarEventItem[]> {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  return fetchPrimaryEvents(accessToken, start, end, "50");
+}
+
+/** From now through the next N days (for "what's next" lists). */
+export async function fetchUpcomingEvents(accessToken: string, horizonDays = 14): Promise<CalendarEventItem[]> {
+  const timeMin = new Date();
+  const timeMax = new Date(timeMin.getTime() + horizonDays * 24 * 60 * 60 * 1000);
+  return fetchPrimaryEvents(accessToken, timeMin, timeMax, "100");
 }

@@ -38,7 +38,7 @@ import {
   subscribeGoals,
   todayIsoLocal,
 } from "@/lib/sync";
-import { fetchTodayEvents, type CalendarEventItem } from "@/lib/calendar";
+import { fetchUpcomingEvents, type CalendarEventItem } from "@/lib/calendar";
 import { authLoginPageUrl, authRedirectToApp } from "@/lib/auth-origin";
 import { signInWithGoogleOAuth } from "@/lib/google-oauth";
 import { FocusOverlay, type FocusSessionEndPayload } from "@/components/FocusOverlay";
@@ -83,6 +83,18 @@ function formatClock(date: Date, format: ClockFormat) {
   const ampm = h24 >= 12 ? "PM" : "AM";
   const h12 = h24 % 12 || 12;
   return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+function formatEventSidebarWhen(e: CalendarEventItem, now: Date): string {
+  const optsTime: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit" };
+  const sameDay =
+    e.start.getFullYear() === now.getFullYear() &&
+    e.start.getMonth() === now.getMonth() &&
+    e.start.getDate() === now.getDate();
+  const timeStr = `${e.start.toLocaleTimeString(undefined, optsTime)}–${e.end.toLocaleTimeString(undefined, optsTime)}`;
+  if (sameDay) return timeStr;
+  const dateStr = e.start.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  return `${dateStr} · ${timeStr}`;
 }
 
 function defaultProfile(userId: string): ProfileRow {
@@ -186,6 +198,15 @@ export default function DashboardClient() {
     const livedRatio = Math.min(1, lived / span);
     return { lived, left, livedRatio };
   }, [mementoStats]);
+
+  const upcomingSidebarEvents = useMemo(() => {
+    if (!calendarEvents?.length) return [];
+    const t = clock.getTime();
+    return calendarEvents
+      .filter((e) => e.end.getTime() > t)
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+      .slice(0, 4);
+  }, [calendarEvents, clock]);
 
   useEffect(() => {
     setClock(new Date());
@@ -553,7 +574,7 @@ export default function DashboardClient() {
           }
           return;
         }
-        const cacheKey = "focal_cal_" + today;
+        const cacheKey = "focal_cal_up_" + today;
         const raw = sessionStorage.getItem(cacheKey);
         const ts = sessionStorage.getItem(cacheKey + "_ts");
         if (raw && ts && Date.now() - Number(ts) < 15 * 60 * 1000) {
@@ -567,7 +588,7 @@ export default function DashboardClient() {
           );
           return;
         }
-        const evs = await fetchTodayEvents(token);
+        const evs = await fetchUpcomingEvents(token, 14);
         setCalendarEvents(evs);
         sessionStorage.setItem(
           cacheKey,
@@ -705,19 +726,39 @@ export default function DashboardClient() {
               Focusing
             </div>
           ) : null}
-          <div className="focal-obs-date-block">
-            <div className="focal-obs-date-kicker">Today</div>
-            <div className="focal-obs-date-long">
+          <div className="focal-obs-datetime-block">
+            <div className="focal-obs-datetime-date">
               {clock.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
             </div>
-            <p className="focal-obs-greeting">{formatGreetingLine(profile?.greeting_template ?? null, name, clock.getHours())}</p>
+            <div className="focal-obs-datetime-time">{formatClock(clock, profile?.clock_format ?? "24hr")}</div>
           </div>
+          <p className="focal-obs-greeting">{formatGreetingLine(profile?.greeting_template ?? null, name, clock.getHours())}</p>
 
-          <section className="focal-obs-side-section" aria-labelledby="focal-obs-now-h">
-            <h2 id="focal-obs-now-h" className="focal-obs-side-label">
-              Now
+          <section className="focal-obs-schedule" aria-labelledby="focal-obs-schedule-h">
+            <h2 id="focal-obs-schedule-h" className="focal-obs-side-label">
+              Next up
             </h2>
-            <div className="focal-obs-side-value">{formatClock(clock, profile?.clock_format ?? "24hr")}</div>
+            {calendarEvents === null ? (
+              <p className="focal-obs-schedule-hint">Connect Google Calendar to see what&apos;s ahead.</p>
+            ) : upcomingSidebarEvents.length === 0 ? (
+              <p className="focal-obs-schedule-hint">Nothing scheduled in the next two weeks.</p>
+            ) : (
+              <ul className="focal-obs-schedule-list">
+                {upcomingSidebarEvents.map((e) => (
+                  <li key={e.id}>
+                    <button
+                      type="button"
+                      className="focal-obs-schedule-row"
+                      onClick={() => setPanel("calendar")}
+                      title="Open calendar"
+                    >
+                      <span className="focal-obs-schedule-title">{e.title}</span>
+                      <span className="focal-obs-schedule-when">{formatEventSidebarWhen(e, clock)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         </aside>
 
@@ -908,7 +949,7 @@ export default function DashboardClient() {
 
       {offlineFlash ? <div className="focal-offline">Offline — changes will sync</div> : null}
 
-      <SlidePanel open={panel === "calendar"} onClose={() => setPanel("none")} anchor="right" title="Today">
+      <SlidePanel open={panel === "calendar"} onClose={() => setPanel("none")} anchor="right" title="Calendar">
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }}>
           <button className="focal-btn" type="button" onClick={() => void refreshCalendar({ interactive: true })}>
             Refresh
@@ -1093,7 +1134,7 @@ function BlockerForm({ onAdd }: { onAdd: (d: string) => void }) {
 
 function CalendarList({ events }: { events: CalendarEventItem[] }) {
   const now = new Date();
-  if (!events.length) return <p style={{ color: "rgba(255,255,255,0.75)" }}>You&apos;re free today 🎉</p>;
+  if (!events.length) return <p style={{ color: "rgba(255,255,255,0.75)" }}>Nothing scheduled in this window.</p>;
   const earlier = events.filter((e) => e.end.getTime() <= now.getTime());
   const current = events.filter((e) => e.start.getTime() <= now.getTime() && e.end.getTime() > now.getTime());
   const upcoming = events.filter((e) => e.start.getTime() > now.getTime());

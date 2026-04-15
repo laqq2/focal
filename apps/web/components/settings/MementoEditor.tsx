@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useRef } from "react";
 import type { MementoEntryRow } from "@focal/shared";
 import { computeMementoStats, yearFromBirthDate } from "@focal/shared";
 import type { createSupabaseBrowser } from "@/lib/supabase-browser";
@@ -17,6 +18,11 @@ export function MementoEditor({
   supabase: Supabase;
   onChange: (rows: MementoEntryRow[]) => void;
 }) {
+  /** Latest rows for merges (avoids stale `memento` when saving quickly). */
+  const mementoRef = useRef(memento);
+  useEffect(() => {
+    mementoRef.current = memento;
+  }, [memento]);
   const seedDefaults = async () => {
     const seeds: MementoEntryRow[] = [
       {
@@ -38,24 +44,40 @@ export function MementoEditor({
     ];
     const { data, error } = await supabase.from("memento_entries").insert(seeds).select("*");
     if (!error && data) {
-      onChange(data as MementoEntryRow[]);
+      const next = [...(data as MementoEntryRow[]), ...mementoRef.current];
+      mementoRef.current = next;
+      onChange(next);
     } else {
-      onChange(seeds);
+      const next = [...seeds, ...mementoRef.current];
+      mementoRef.current = next;
+      onChange(next);
     }
   };
 
-  const updateRow = async (id: string, patch: Partial<MementoEntryRow>) => {
-    const next = memento.map((r) => {
-      if (r.id !== id) return r;
-      const u = { ...r, ...patch };
-      if (patch.birth_date !== undefined) {
-        u.birth_year = yearFromBirthDate(patch.birth_date ?? null, r.birth_year);
+  const updateRow = useCallback(
+    async (id: string, patch: Partial<MementoEntryRow>) => {
+      const source = mementoRef.current;
+      const next = source.map((r) => {
+        if (r.id !== id) return r;
+        const u = { ...r, ...patch };
+        if (patch.birth_date !== undefined) {
+          u.birth_year = yearFromBirthDate(patch.birth_date ?? null, r.birth_year);
+        }
+        return u;
+      });
+      const updated = next.find((r) => r.id === id);
+      if (!updated) return;
+      mementoRef.current = next;
+      onChange(next);
+      try {
+        await supabase.from("memento_entries").upsert(updated, { onConflict: "id" });
+      } catch {
+        mementoRef.current = source;
+        onChange(source);
       }
-      return u;
-    });
-    onChange(next);
-    await supabase.from("memento_entries").upsert(next, { onConflict: "id" });
-  };
+    },
+    [onChange, supabase]
+  );
 
   return (
     <div>
@@ -104,8 +126,16 @@ export function MementoEditor({
                 <input
                   className="focal-input"
                   type="number"
+                  min={60}
+                  max={120}
                   value={m.life_expectancy ?? 82}
-                  onChange={(e) => void updateRow(m.id, { life_expectancy: Number(e.target.value) })}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "") return;
+                    const n = Number(raw);
+                    if (Number.isNaN(n)) return;
+                    void updateRow(m.id, { life_expectancy: Math.min(120, Math.max(60, n)) });
+                  }}
                 />
               </label>
               <label>
