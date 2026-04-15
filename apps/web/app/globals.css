@@ -342,6 +342,347 @@ button {
   padding: 1.5rem;
 }
 
+/* ——— Sounds panel (grid + glass shell) ——— */
+.focal-sounds-overlay {
+  padding: 1rem;
+}
+
+.focal-sounds-shell {
+  width: min(1040px, 96vw);
+  max-height: min(88vh, 820px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(165deg, rgba(26, 24, 28, 0.96) 0%, rgba(12, 11, 14, 0.98) 100%);
+  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  backdrop-filter: blur(20px) saturate(1.12);
+  -webkit-backdrop-filter: blur(20px) saturate(1.12);
+  overflow: hidden;
+}
+
+.focal-sounds-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem 0.65rem 1.1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+}
+
+.focal-sounds-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.focal-sounds-header-icon {
+  display: flex;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.focal-sounds-heading {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.focal-sounds-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.focal-sounds-icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.focal-sounds-icon-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.focal-sounds-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.focal-sounds-close {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.focal-sounds-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.focal-sounds-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem 0.55rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.focal-sounds-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.focal-sounds-tab {
+  border: none;
+  border-radius: 999px;
+  padding: 0.38rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.focal-sounds-tab:hover {
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.focal-sounds-tab.is-active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  font-weight: 600;
+}
+
+.focal-sounds-now-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.42rem 0.95rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(110, 90, 140, 0.45);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: background 0.15s ease, transform 0.12s ease;
+  flex-shrink: 0;
+}
+
+.focal-sounds-now-btn:hover {
+  background: rgba(130, 105, 165, 0.55);
+}
+
+.focal-sounds-now-btn.has-active {
+  box-shadow: 0 0 0 1px rgba(200, 180, 255, 0.25);
+}
+
+.focal-sounds-now-panel {
+  margin: 0 1rem 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.focal-sounds-now-row {
+  display: grid;
+  grid-template-columns: 1fr minmax(80px, 1.2fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.focal-sounds-now-row:last-child {
+  border-bottom: none;
+}
+
+.focal-sounds-now-name {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.88);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focal-sounds-now-slider {
+  width: 100%;
+  accent-color: #c4b5e0;
+}
+
+.focal-sounds-now-stop {
+  border: none;
+  border-radius: 8px;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+
+.focal-sounds-now-stop:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.focal-sounds-body {
+  padding: 0.35rem 1rem 1.1rem;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.focal-sounds-empty,
+.focal-sounds-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.focal-sounds-placeholder {
+  padding: 0.75rem 0.5rem 1rem;
+  max-width: 36rem;
+}
+
+.focal-sounds-placeholder p {
+  margin: 0 0 0.5rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.focal-sounds-placeholder-sub {
+  font-size: 0.8rem !important;
+  color: rgba(255, 255, 255, 0.48) !important;
+}
+
+.focal-sounds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 0.75rem;
+}
+
+@media (min-width: 900px) {
+  .focal-sounds-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.focal-sound-card {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.focal-sound-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+}
+
+.focal-sound-card.is-active {
+  border-color: rgba(255, 255, 255, 0.42);
+  box-shadow: 0 0 0 2px rgba(200, 190, 255, 0.35), 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.focal-sound-card-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.15) 40%, rgba(0, 0, 0, 0.72) 100%);
+  pointer-events: none;
+}
+
+.focal-sound-card-hit {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 1rem 0.65rem 0.85rem;
+  border: none;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  text-align: center;
+}
+
+.focal-sound-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.25rem;
+  color: rgba(255, 255, 255, 0.92);
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
+}
+
+.focal-sound-card-label {
+  position: absolute;
+  left: 0.65rem;
+  right: 0.65rem;
+  bottom: 0.65rem;
+  text-align: left;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.75);
+}
+
+.focal-sound-card-vol {
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 2.35rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.focal-sound-card:hover .focal-sound-card-vol,
+.focal-sound-card-vol.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.focal-sound-card-vol input {
+  width: 100%;
+  accent-color: #d8cfe8;
+}
+
 .focal-focus-card {
   width: min(440px, 100%);
   padding: 1.5rem 1.25rem 1.25rem;
@@ -391,58 +732,6 @@ button {
   font-size: clamp(2.4rem, 6vw, 3.2rem);
   font-variant-numeric: tabular-nums;
   margin: 0.25rem 0 0.75rem;
-}
-
-.focal-sound-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-  gap: 0.65rem;
-}
-
-@media (min-width: 720px) {
-  .focal-sound-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-}
-
-.focal-sound-tile {
-  position: relative;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.25);
-  text-align: left;
-  color: #fff;
-  transition: transform 0.25s ease, filter 0.15s ease, box-shadow 0.2s ease;
-}
-
-.focal-sound-tile:hover {
-  filter: brightness(1.08);
-}
-
-.focal-sound-tile.active {
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.55), 0 0 0 3px var(--active-glow);
-  animation: focalPulse 2.4s ease-in-out infinite;
-}
-
-@keyframes focalPulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.03);
-  }
-}
-
-.focal-sound-tile .vol {
-  margin-top: 0.5rem;
-  display: none;
-}
-
-.focal-sound-tile:hover .vol,
-.focal-sound-tile.show-vol .vol {
-  display: block;
 }
 
 .focal-switch {
