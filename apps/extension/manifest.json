@@ -6,7 +6,7 @@
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   },
-  "permissions": ["storage", "identity", "declarativeNetRequest", "declarativeNetRequestWithHostAccess"],
+  "permissions": ["storage", "tabs", "identity", "declarativeNetRequest", "declarativeNetRequestWithHostAccess"],
   "host_permissions": ["https://www.googleapis.com/*", "https://api.open-meteo.com/*", "<all_urls>"],
   "background": {
     "service_worker": "background.js"

@@ -18,3 +18,8 @@ export function getAuthAppOrigin(): string {
 export function authRedirectToApp(): string {
   return `${getAuthAppOrigin()}/app`;
 }
+
+/** Full URL for the standalone login page (used by the extension shell via `chrome.tabs.create`). */
+export function authLoginPageUrl(): string {
+  return `${getAuthAppOrigin()}/login`;
+}

@@ -47,6 +47,14 @@ window.addEventListener("message", (event) => {
     return;
   }
 
+  if (msg.type === "FOCAL_OPEN_LOGIN_TAB") {
+    const url = typeof msg.payload === "string" ? msg.payload : msg.payload?.url;
+    if (url && chrome.tabs?.create) {
+      chrome.tabs.create({ url });
+    }
+    return;
+  }
+
   if (msg.type === "FOCAL_UPDATE_BLOCKER") {
     const domains = Array.isArray(msg.payload?.domains) ? msg.payload.domains : [];
     const active = Boolean(msg.payload?.active);

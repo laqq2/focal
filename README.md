@@ -52,7 +52,7 @@ Add your background image as `apps/web/public/background.jpg` (see `public/BACKG
 
 ## Chrome extension
 
-1. Edit `apps/extension/config.json` and set **`appUrl`** to the same deployed URL as **`NEXT_PUBLIC_APP_ORIGIN` + `/app`** (for example `https://focal.example.com/app`). Local dev can use `http://localhost:3000/app`. Google sign-in runs in a **popup** when the app is embedded in the new tab iframe (Google blocks OAuth inside iframes). After you finish in the popup, the app forwards the session to the iframe (including when Chrome uses **partitioned** storage so the popup and iframe do not share `localStorage`).
+1. Edit `apps/extension/config.json` and set **`appUrl`** to the same deployed URL as **`NEXT_PUBLIC_APP_ORIGIN` + `/app`** (for example `https://focal.example.com/app`). Local dev can use `http://localhost:3000/app`. **Sign-in from the new tab** uses **“Sign in to Focal”** → the extension parent calls **`chrome.tabs.create`** to open your hosted **`/login`** (Chrome blocks popups on the new tab page). After you sign in on that tab, the iframe picks up the session via **storage polling / `BroadcastChannel`**, or use **“I’ve signed in — refresh”** if it does not connect within ~10 seconds.
 
 2. Open `chrome://extensions`, enable **Developer mode**, **Load unpacked**, choose `focal/apps/extension`.
 

@@ -53,3 +53,15 @@ export function notifyExtensionBlocker(payload: BlockerPayload): void {
 export function announceChildReady(): void {
   postToExtension({ type: "FOCAL_CHILD_READY" });
 }
+
+/**
+ * Opens the hosted login page. In the extension new tab iframe, asks the parent
+ * to `chrome.tabs.create` (popups are blocked there); otherwise navigates this window.
+ */
+export function openExtensionLoginTab(url: string): void {
+  if (!isEmbeddedExtension()) {
+    window.location.assign(url);
+    return;
+  }
+  postToExtension({ type: "FOCAL_OPEN_LOGIN_TAB", payload: url });
+}

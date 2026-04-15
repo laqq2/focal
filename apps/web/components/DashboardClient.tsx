@@ -25,6 +25,7 @@ import {
   isEmbeddedExtension,
   notifyExtensionBlocker,
   notifyExtensionSession,
+  openExtensionLoginTab,
   requestSessionFromExtension,
 } from "@/lib/extension-bridge";
 import {
@@ -38,7 +39,7 @@ import {
 } from "@/lib/sync";
 import { fetchMelbourneWeather, fetchWeatherByCoords, type WeatherState } from "@/lib/weather";
 import { fetchTodayEvents, type CalendarEventItem } from "@/lib/calendar";
-import { authRedirectToApp, getAuthAppOrigin } from "@/lib/auth-origin";
+import { authLoginPageUrl, authRedirectToApp, getAuthAppOrigin } from "@/lib/auth-origin";
 import { signInWithGoogleOAuth } from "@/lib/google-oauth";
 import { isOAuthSessionMessage } from "@/components/OAuthPopupBridge";
 import { FocusOverlay, type FocusSessionEndPayload } from "@/components/FocusOverlay";
@@ -122,6 +123,8 @@ export default function DashboardClient() {
   const [calendarBusy, setCalendarBusy] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [authInlineError, setAuthInlineError] = useState<string | null>(null);
+  const [extensionLoginTabOpenedAt, setExtensionLoginTabOpenedAt] = useState<number | null>(null);
+  const [extensionLoginRefreshHint, setExtensionLoginRefreshHint] = useState(false);
 
   const goalDebounce = useRef<number | null>(null);
 
@@ -341,6 +344,46 @@ export default function DashboardClient() {
       window.removeEventListener("focus", sync);
       window.clearInterval(poll);
     };
+  }, [supabase]);
+
+  useEffect(() => {
+    if (session) {
+      setExtensionLoginTabOpenedAt(null);
+      setExtensionLoginRefreshHint(false);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (!extensionLoginTabOpenedAt || session) return;
+    setExtensionLoginRefreshHint(false);
+    const t = window.setTimeout(() => setExtensionLoginRefreshHint(true), 10_000);
+    return () => window.clearTimeout(t);
+  }, [extensionLoginTabOpenedAt, session]);
+
+  /** Signing in on a normal tab: ping the extension iframe (same origin) to pull the session. */
+  useEffect(() => {
+    if (isEmbeddedExtension()) return;
+    if (!session) return;
+    if (typeof BroadcastChannel === "undefined") return;
+    try {
+      const bc = new BroadcastChannel("focal-auth-sync");
+      bc.postMessage({ type: "focal-signed-in" });
+      bc.close();
+    } catch {
+      /* ignore */
+    }
+  }, [session?.access_token]);
+
+  useEffect(() => {
+    if (!isEmbeddedExtension()) return;
+    if (typeof BroadcastChannel === "undefined") return;
+    const bc = new BroadcastChannel("focal-auth-sync");
+    bc.onmessage = () => {
+      void supabase.auth.getSession().then(({ data }) => {
+        if (data.session) setSession(data.session);
+      });
+    };
+    return () => bc.close();
   }, [supabase]);
 
   useEffect(() => {
@@ -603,32 +646,56 @@ export default function DashboardClient() {
           <div className="focal-panel focal-login-card">
             <h1 style={{ margin: "0 0 0.35rem", fontSize: "1.6rem" }}>Welcome to Focal</h1>
             <p style={{ margin: "0 0 1rem", color: "rgba(255,255,255,0.7)" }}>Sign in to sync across Chrome, Safari, and the web.</p>
-            <button
-              className="focal-btn primary"
-              type="button"
-              onClick={() => {
-                setAuthInlineError(null);
-                void signInWithGoogleOAuth(supabase).then(({ error }) => {
-                  setAuthInlineError(error?.message ?? null);
-                });
-              }}
-            >
-              Continue with Google
-            </button>
-            {authInlineError ? (
-              <p style={{ margin: "0.65rem 0 0", fontSize: "0.82rem", color: "#fecaca", lineHeight: 1.4 }}>{authInlineError}</p>
-            ) : null}
             {isEmbeddedExtension() ? (
-              <p style={{ margin: "0.65rem 0 0", fontSize: "0.8rem", color: "rgba(255,255,255,0.6)", lineHeight: 1.45 }}>
-                A separate window opens for Google (required in the new tab extension). Finish sign-in there, then come back
-                — this page will connect automatically.
-              </p>
-            ) : null}
+              <>
+                <button
+                  className="focal-btn primary"
+                  type="button"
+                  onClick={() => {
+                    setAuthInlineError(null);
+                    setExtensionLoginTabOpenedAt(Date.now());
+                    setExtensionLoginRefreshHint(false);
+                    openExtensionLoginTab(authLoginPageUrl());
+                  }}
+                >
+                  Sign in to Focal
+                </button>
+                <p style={{ margin: "0.65rem 0 0", fontSize: "0.8rem", color: "rgba(255,255,255,0.6)", lineHeight: 1.45 }}>
+                  Opens a normal browser tab (Chrome blocks popups on the new tab page). Finish Google or email sign-in there;
+                  this tab should connect automatically when you return.
+                </p>
+                {extensionLoginRefreshHint ? (
+                  <button className="focal-btn" type="button" style={{ marginTop: "0.75rem", width: "100%" }} onClick={() => window.location.reload()}>
+                    I&apos;ve signed in — refresh
+                  </button>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <button
+                  className="focal-btn primary"
+                  type="button"
+                  onClick={() => {
+                    setAuthInlineError(null);
+                    void signInWithGoogleOAuth(supabase).then(({ error }) => {
+                      setAuthInlineError(error?.message ?? null);
+                    });
+                  }}
+                >
+                  Continue with Google
+                </button>
+                {authInlineError ? (
+                  <p style={{ margin: "0.65rem 0 0", fontSize: "0.82rem", color: "#fecaca", lineHeight: 1.4 }}>{authInlineError}</p>
+                ) : null}
+              </>
+            )}
             <div style={{ margin: "1rem 0", color: "rgba(255,255,255,0.45)", fontSize: "0.85rem" }}>or</div>
             <MagicLink supabase={supabase} />
-            <button className="focal-btn" type="button" style={{ marginTop: "0.75rem" }} onClick={() => (window.location.href = "/login")}>
-              Open full login page
-            </button>
+            {!isEmbeddedExtension() ? (
+              <button className="focal-btn" type="button" style={{ marginTop: "0.75rem" }} onClick={() => (window.location.href = "/login")}>
+                Open full login page
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -778,8 +845,15 @@ export default function DashboardClient() {
         {calendarError === "missing_token" ? (
           <div>
             <p>Connect Google Calendar by signing in with Google (with calendar access).</p>
-            <button className="focal-btn primary" type="button" onClick={() => void signInWithGoogleOAuth(supabase)}>
-              Sign in with Google
+            <button
+              className="focal-btn primary"
+              type="button"
+              onClick={() => {
+                if (isEmbeddedExtension()) openExtensionLoginTab(authLoginPageUrl());
+                else void signInWithGoogleOAuth(supabase);
+              }}
+            >
+              {isEmbeddedExtension() ? "Sign in to Focal (opens tab)" : "Sign in with Google"}
             </button>
           </div>
         ) : null}
