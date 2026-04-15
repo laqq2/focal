@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ClockFormat, ProfileRow, QuoteStyle, ThemeMode } from "@focal/shared";
 import type { createSupabaseBrowser } from "@/lib/supabase-browser";
+import { authRedirectToApp } from "@/lib/auth-origin";
 
 export type SettingsNavSection = "general" | "account" | "focus" | "memento" | "calendar" | "help";
 
@@ -168,8 +169,7 @@ export function AccountSection({
       onError("No email on this account.");
       return;
     }
-    const origin = process.env.NEXT_PUBLIC_APP_ORIGIN ?? window.location.origin;
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${origin}/app` });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: authRedirectToApp() });
     if (error) onError(error.message);
     else onMessage("Check your email for a password reset link.");
   };

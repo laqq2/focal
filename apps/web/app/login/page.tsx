@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowser } from "@/lib/supabase-browser";
+import { authRedirectToApp } from "@/lib/auth-origin";
+import { signInWithGoogleOAuth } from "@/lib/google-oauth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,15 +23,7 @@ export default function LoginPage() {
     setBusy(true);
     setStatus(null);
     const supabase = createSupabaseBrowser();
-    const origin = process.env.NEXT_PUBLIC_APP_ORIGIN ?? window.location.origin;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${origin}/app`,
-        scopes: "https://www.googleapis.com/auth/calendar.readonly",
-        queryParams: { access_type: "offline", prompt: "consent" },
-      },
-    });
+    const { error } = await signInWithGoogleOAuth(supabase);
     if (error) setStatus(error.message);
     setBusy(false);
   };
@@ -38,10 +32,9 @@ export default function LoginPage() {
     setBusy(true);
     setStatus(null);
     const supabase = createSupabaseBrowser();
-    const origin = process.env.NEXT_PUBLIC_APP_ORIGIN ?? window.location.origin;
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${origin}/app` },
+      options: { emailRedirectTo: authRedirectToApp() },
     });
     if (error) setStatus(error.message);
     else setStatus("Check your email for the magic link.");

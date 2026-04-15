@@ -48,11 +48,11 @@ Add your background image as `apps/web/public/background.jpg` (see `public/BACKG
 
 1. Connect the `focal` repo and set the **Root Directory** to `apps/web` (or deploy the monorepo with the same workspace install command: `npm install` at repo root, **Build** `npm run build --workspace=@focal/web`, **Output** `.next` from `apps/web`).
 
-2. Configure the same `NEXT_PUBLIC_*` variables in Vercel. Set `NEXT_PUBLIC_APP_ORIGIN` to your production origin (for example `https://focal.example.com`).
+2. Configure the same `NEXT_PUBLIC_*` variables in Vercel. Set **`NEXT_PUBLIC_APP_ORIGIN`** to your **production https origin** (no trailing slash), for example `https://focal.example.com`. The Chrome extension and Google OAuth use this value for `redirectTo`; if it is missing on the deployed build, sign-in from the extension can fail with **403**. In **Supabase → Authentication → URL Configuration**, add **`https://YOUR-DOMAIN/app`** (and `http://localhost:3000/app` for local dev) to **Redirect URLs**.
 
 ## Chrome extension
 
-1. Edit `apps/extension/config.json` and set `appUrl` to your deployed `/app` URL (or keep `http://localhost:3000/app` for local dev).
+1. Edit `apps/extension/config.json` and set **`appUrl`** to the same deployed URL as **`NEXT_PUBLIC_APP_ORIGIN` + `/app`** (for example `https://focal.example.com/app`). Local dev can use `http://localhost:3000/app`. Google sign-in runs in a **popup** when the app is embedded in the new tab iframe (Google blocks OAuth inside iframes). After you finish in the popup, the app forwards the session to the iframe (including when Chrome uses **partitioned** storage so the popup and iframe do not share `localStorage`).
 
 2. Open `chrome://extensions`, enable **Developer mode**, **Load unpacked**, choose `focal/apps/extension`.
 

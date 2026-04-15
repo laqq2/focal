@@ -38,6 +38,9 @@ import {
 } from "@/lib/sync";
 import { fetchMelbourneWeather, fetchWeatherByCoords, type WeatherState } from "@/lib/weather";
 import { fetchTodayEvents, type CalendarEventItem } from "@/lib/calendar";
+import { authRedirectToApp, getAuthAppOrigin } from "@/lib/auth-origin";
+import { signInWithGoogleOAuth } from "@/lib/google-oauth";
+import { isOAuthSessionMessage } from "@/components/OAuthPopupBridge";
 import { FocusOverlay, type FocusSessionEndPayload } from "@/components/FocusOverlay";
 import { HomeMementoCard } from "@/components/HomeMementoCard";
 import { TasksDock } from "@/components/TasksDock";
@@ -118,6 +121,7 @@ export default function DashboardClient() {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEventItem[] | null>(null);
   const [calendarBusy, setCalendarBusy] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [authInlineError, setAuthInlineError] = useState<string | null>(null);
 
   const goalDebounce = useRef<number | null>(null);
 
@@ -281,6 +285,63 @@ export default function DashboardClient() {
       sub.subscription.unsubscribe();
     };
   }, [supabase, today]);
+
+  /** Extension iframe: OAuth popup posts session here (storage may be partitioned from the popup). */
+  useEffect(() => {
+    if (!isEmbeddedExtension()) return;
+    const onMsg = (e: MessageEvent) => {
+      if (e.origin !== getAuthAppOrigin()) return;
+      if (!isOAuthSessionMessage(e.data)) return;
+      const { access_token, refresh_token, expires_at } = e.data.payload;
+      void supabase.auth.setSession({ access_token, refresh_token }).then(({ data, error }) => {
+        if (error || !data.session) return;
+        notifyExtensionSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+          expires_at: data.session.expires_at ?? expires_at,
+        });
+      });
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, [supabase]);
+
+  /** Extension iframe: backup sync if localStorage is shared with the popup. */
+  useEffect(() => {
+    if (!isEmbeddedExtension()) return;
+    const lastRef = { token: null as string | null };
+    const sync = () => {
+      void supabase.auth.getSession().then(({ data }) => {
+        const next = data.session ?? null;
+        const tok = next?.access_token ?? null;
+        if (tok === lastRef.token) return;
+        lastRef.token = tok;
+        setSession(next);
+        if (next) {
+          notifyExtensionSession({
+            access_token: next.access_token,
+            refresh_token: next.refresh_token,
+            expires_at: next.expires_at ?? undefined,
+          });
+        } else {
+          notifyExtensionSession(null);
+        }
+      });
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.storageArea !== localStorage) return;
+      if (!e.key) return;
+      if (e.key.includes("supabase") || e.key.includes("sb-")) sync();
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", sync);
+    const poll = window.setInterval(sync, 3000);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", sync);
+      window.clearInterval(poll);
+    };
+  }, [supabase]);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -545,19 +606,24 @@ export default function DashboardClient() {
             <button
               className="focal-btn primary"
               type="button"
-              onClick={() =>
-                void supabase.auth.signInWithOAuth({
-                  provider: "google",
-                  options: {
-                    redirectTo: `${process.env.NEXT_PUBLIC_APP_ORIGIN ?? window.location.origin}/app`,
-                    scopes: "https://www.googleapis.com/auth/calendar.readonly",
-                    queryParams: { access_type: "offline", prompt: "consent" },
-                  },
-                })
-              }
+              onClick={() => {
+                setAuthInlineError(null);
+                void signInWithGoogleOAuth(supabase).then(({ error }) => {
+                  setAuthInlineError(error?.message ?? null);
+                });
+              }}
             >
               Continue with Google
             </button>
+            {authInlineError ? (
+              <p style={{ margin: "0.65rem 0 0", fontSize: "0.82rem", color: "#fecaca", lineHeight: 1.4 }}>{authInlineError}</p>
+            ) : null}
+            {isEmbeddedExtension() ? (
+              <p style={{ margin: "0.65rem 0 0", fontSize: "0.8rem", color: "rgba(255,255,255,0.6)", lineHeight: 1.45 }}>
+                A separate window opens for Google (required in the new tab extension). Finish sign-in there, then come back
+                — this page will connect automatically.
+              </p>
+            ) : null}
             <div style={{ margin: "1rem 0", color: "rgba(255,255,255,0.45)", fontSize: "0.85rem" }}>or</div>
             <MagicLink supabase={supabase} />
             <button className="focal-btn" type="button" style={{ marginTop: "0.75rem" }} onClick={() => (window.location.href = "/login")}>
@@ -712,20 +778,7 @@ export default function DashboardClient() {
         {calendarError === "missing_token" ? (
           <div>
             <p>Connect Google Calendar by signing in with Google (with calendar access).</p>
-            <button
-              className="focal-btn primary"
-              type="button"
-              onClick={() =>
-                void supabase.auth.signInWithOAuth({
-                  provider: "google",
-                  options: {
-                    redirectTo: `${process.env.NEXT_PUBLIC_APP_ORIGIN ?? window.location.origin}/app`,
-                    scopes: "https://www.googleapis.com/auth/calendar.readonly",
-                    queryParams: { access_type: "offline", prompt: "consent" },
-                  },
-                })
-              }
-            >
+            <button className="focal-btn primary" type="button" onClick={() => void signInWithGoogleOAuth(supabase)}>
               Sign in with Google
             </button>
           </div>
@@ -838,8 +891,10 @@ function MagicLink({ supabase }: { supabase: ReturnType<typeof createSupabaseBro
         type="button"
         style={{ width: "100%", marginTop: "0.5rem" }}
         onClick={async () => {
-          const origin = process.env.NEXT_PUBLIC_APP_ORIGIN ?? window.location.origin;
-          const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${origin}/app` } });
+          const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: { emailRedirectTo: authRedirectToApp() },
+          });
           setMsg(error ? error.message : "Check your email.");
         }}
       >
