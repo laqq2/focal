@@ -345,9 +345,19 @@ button {
 /* ——— Sounds panel (grid + glass shell) ——— */
 .focal-sounds-overlay {
   padding: 1rem;
+  position: relative;
+  z-index: 70;
+  isolation: isolate;
+}
+
+.focal-sounds-overlay .focal-panel-backdrop,
+.focal-sounds-backdrop {
+  z-index: 0 !important;
 }
 
 .focal-sounds-shell {
+  position: relative;
+  z-index: 2;
   width: min(1040px, 96vw);
   max-height: min(88vh, 820px);
   display: flex;
@@ -437,12 +447,21 @@ button {
 
 .focal-sounds-toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.65rem 1rem 0.55rem;
   flex-wrap: wrap;
   flex-shrink: 0;
+}
+
+.focal-sounds-essentials-hint {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.48);
 }
 
 .focal-sounds-tabs {
@@ -1646,9 +1665,57 @@ button {
 }
 
 .focal-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
   font-size: 0.72rem;
   color: rgba(255, 255, 255, 0.55);
   margin-bottom: 0.35rem;
+}
+
+.focal-history-edit-btn {
+  margin-left: auto;
+  border: none;
+  border-radius: 8px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+
+.focal-history-edit-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.focal-history-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.35rem;
+}
+
+.focal-history-edit-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+@media (max-width: 520px) {
+  .focal-history-edit-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.focal-history-edit-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .focal-history-intent {
@@ -3143,6 +3210,16 @@ button {
   font-style: normal;
   letter-spacing: 0.2em;
   color: var(--accent-gold);
+}
+
+.focal-obs-quote-empty {
+  margin: 0 auto 2rem;
+  max-width: min(520px, 92vw);
+  padding: 1rem 1.15rem;
+  text-align: center;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.52);
 }
 
 .focal-obs-goal {

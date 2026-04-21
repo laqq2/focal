@@ -42,19 +42,34 @@ const engineSingleton = typeof window !== "undefined" ? new FocalAudioEngine() :
 
 const DURATION_CHIPS = [15, 25, 45, 60];
 
-function playChime(ctx: AudioContext) {
+/** End-of-interval bell — louder when a focus block completes. */
+function playChime(ctx: AudioContext, kind: "focus_done" | "break_done") {
+  const peak = kind === "focus_done" ? 0.22 : 0.09;
   const o = ctx.createOscillator();
   const g = ctx.createGain();
   o.type = "sine";
   o.frequency.setValueAtTime(880, ctx.currentTime);
   o.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.35);
   g.gain.setValueAtTime(0.0001, ctx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.02);
+  g.gain.exponentialRampToValueAtTime(peak, ctx.currentTime + 0.02);
   g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
   o.connect(g);
   g.connect(ctx.destination);
   o.start();
   o.stop(ctx.currentTime + 0.5);
+  if (kind === "focus_done") {
+    const o2 = ctx.createOscillator();
+    const g2 = ctx.createGain();
+    o2.type = "sine";
+    o2.frequency.setValueAtTime(660, ctx.currentTime + 0.12);
+    g2.gain.setValueAtTime(0.0001, ctx.currentTime + 0.12);
+    g2.gain.exponentialRampToValueAtTime(peak * 0.55, ctx.currentTime + 0.14);
+    g2.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.38);
+    o2.connect(g2);
+    g2.connect(ctx.destination);
+    o2.start(ctx.currentTime + 0.12);
+    o2.stop(ctx.currentTime + 0.42);
+  }
 }
 
 export function FocusOverlay({
@@ -150,6 +165,15 @@ export function FocusOverlay({
     onSessionEndRef.current = onSessionEnd;
   }, [onSessionEnd]);
 
+  const baseTitleRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (baseTitleRef.current === null) baseTitleRef.current = document.title;
+    return () => {
+      if (baseTitleRef.current !== null) document.title = baseTitleRef.current;
+    };
+  }, []);
+
   const finalizeFocusSession = (completedNaturally: boolean) => {
     const planned = focusLenRef.current;
     const elapsedSession = focusSessionStartedAtIso.current
@@ -186,12 +210,13 @@ export function FocusOverlay({
       setRemaining(next);
       if (next <= 0 && !handledZeroRef.current) {
         handledZeroRef.current = true;
+        const tabAtZero = tab;
         setRunning(false);
         void (async () => {
           const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
           const ctx = new Ctx();
           if (ctx.state === "suspended") await ctx.resume();
-          playChime(ctx);
+          playChime(ctx, tabAtZero === "focus" ? "focus_done" : "break_done");
         })();
         if (tab === "focus") {
           finalizeFocusSession(true);
@@ -253,6 +278,20 @@ export function FocusOverlay({
     const s = Math.floor(remaining % 60);
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }, [remaining]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (baseTitleRef.current === null) baseTitleRef.current = document.title;
+    if (!open) {
+      document.title = baseTitleRef.current;
+      return;
+    }
+    if (!running) {
+      document.title = baseTitleRef.current;
+      return;
+    }
+    document.title = `${fmt} · Focus · Focal`;
+  }, [open, running, fmt]);
 
   useEffect(() => {
     onHeroTelemetry?.({

@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { SoundGlyph } from "@/lib/sound-glyph";
 import { FocalAudioEngine, SOUND_CATALOG, isValidSoundId, type SoundId } from "@/lib/sounds-engine";
 
-type UiTab = "recent" | "soundscapes" | "binaural" | "spotify" | "youtube" | "custom";
-
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -36,7 +34,7 @@ function labelFor(id: SoundId): string {
 }
 
 export function SoundsPanel({ open, onClose, engine }: Props) {
-  const [tab, setTab] = useState<UiTab>("soundscapes");
+  const [showRecent, setShowRecent] = useState(false);
   const [recent, setRecent] = useState<SoundId[]>([]);
   const [nowPlayingOpen, setNowPlayingOpen] = useState(false);
   const [, bump] = useState(0);
@@ -54,13 +52,11 @@ export function SoundsPanel({ open, onClose, engine }: Props) {
   const activeIds = engine ? engine.getActiveSoundIds() : [];
 
   const tiles = useMemo(() => {
-    if (tab === "recent") {
+    if (showRecent && recent.length) {
       return SOUND_CATALOG.filter((s) => recent.includes(s.id)).sort((a, b) => recent.indexOf(a.id) - recent.indexOf(b.id));
     }
-    if (tab === "soundscapes") return SOUND_CATALOG.filter((s) => s.family === "soundscape");
-    if (tab === "binaural") return SOUND_CATALOG.filter((s) => s.family === "binaural");
-    return [];
-  }, [tab, recent]);
+    return SOUND_CATALOG;
+  }, [showRecent, recent]);
 
   if (!open) return null;
 
@@ -77,15 +73,8 @@ export function SoundsPanel({ open, onClose, engine }: Props) {
     bump((x) => x + 1);
   };
 
-  const tabBtn = (id: UiTab, label: string) => (
-    <button key={id} type="button" className={`focal-sounds-tab ${tab === id ? "is-active" : ""}`} onClick={() => setTab(id)}>
-      {label}
-    </button>
-  );
-
   return (
     <div className="focal-focus-overlay focal-sounds-overlay" style={{ zIndex: 80 }}>
-      <div className="focal-panel-backdrop" onClick={onClose} />
       <div className="focal-sounds-shell">
         <header className="focal-sounds-header">
           <div className="focal-sounds-header-title">
@@ -99,8 +88,14 @@ export function SoundsPanel({ open, onClose, engine }: Props) {
             <h2 className="focal-sounds-heading">Sounds</h2>
           </div>
           <div className="focal-sounds-header-actions">
-            <button type="button" className="focal-sounds-icon-btn" aria-label="Add (coming soon)" title="Coming soon" disabled>
-              +
+            <button
+              type="button"
+              className={`focal-sounds-tab ${showRecent ? "is-active" : ""}`}
+              onClick={() => setShowRecent((v) => !v)}
+              disabled={recent.length === 0}
+              title={recent.length ? "Toggle recent order" : "Play something to see recents"}
+            >
+              Recent
             </button>
             <button type="button" className="focal-sounds-close" aria-label="Close sounds" onClick={onClose}>
               ×
@@ -109,14 +104,7 @@ export function SoundsPanel({ open, onClose, engine }: Props) {
         </header>
 
         <div className="focal-sounds-toolbar">
-          <div className="focal-sounds-tabs" role="tablist" aria-label="Sound categories">
-            {tabBtn("recent", "Recent")}
-            {tabBtn("soundscapes", "Soundscapes")}
-            {tabBtn("binaural", "Binaural")}
-            {tabBtn("spotify", "Spotify")}
-            {tabBtn("youtube", "YouTube")}
-            {tabBtn("custom", "Custom")}
-          </div>
+          <p className="focal-sounds-essentials-hint">Study binaural, masking, café, and nature — all generated in your browser.</p>
           <button
             type="button"
             className={`focal-sounds-now-btn ${activeIds.length ? "has-active" : ""}`}
@@ -151,72 +139,44 @@ export function SoundsPanel({ open, onClose, engine }: Props) {
         ) : null}
 
         <div className="focal-sounds-body">
-          {tab === "recent" && tiles.length === 0 ? (
-            <p className="focal-sounds-empty">Play a sound to build your recent list.</p>
+          {showRecent && recent.length === 0 ? (
+            <p className="focal-sounds-empty">Play a sound to build a recent list — showing all essentials below.</p>
           ) : null}
-          {tab === "binaural" ? (
-            <p className="focal-sounds-hint">Use stereo headphones for binaural beats. You can layer a soundscape underneath.</p>
-          ) : null}
-          {tab === "spotify" ? (
-            <div className="focal-sounds-placeholder">
-              <p>
-                <strong>Spotify</strong> is not embedded here — open Spotify in another tab and play your focus playlist while Focal runs.
-              </p>
-              <p className="focal-sounds-placeholder-sub">Native mixing inside Focal may arrive in a future update.</p>
-            </div>
-          ) : null}
-          {tab === "youtube" ? (
-            <div className="focal-sounds-placeholder">
-              <p>
-                <strong>YouTube</strong> focus mixes work best in a separate tab so the timer and blocker stay uninterrupted.
-              </p>
-            </div>
-          ) : null}
-          {tab === "custom" ? (
-            <div className="focal-sounds-placeholder">
-              <p>
-                <strong>Custom</strong> uploads are not available yet. Every texture here is generated in high quality in your browser — no
-                compressed loops.
-              </p>
-            </div>
-          ) : null}
-
-          {tab === "recent" || tab === "soundscapes" || tab === "binaural" ? (
-            <div className="focal-sounds-grid">
-              {tiles.map((s) => {
-                const active = engine?.isPlaying(s.id) ?? false;
-                return (
-                  <div
-                    key={s.id}
-                    className={`focal-sound-card ${active ? "is-active" : ""}`}
-                    style={{ backgroundImage: s.gradient }}
-                    title={s.tooltip}
-                  >
-                    <div className="focal-sound-card-shade" aria-hidden />
-                    <button type="button" className="focal-sound-card-hit" onClick={() => void toggle(s.id)} aria-pressed={active}>
-                      <span className="focal-sound-card-icon">
-                        <SoundGlyph id={s.id} />
-                      </span>
-                      <span className="focal-sound-card-label">{s.label}</span>
-                    </button>
-                    <div className={`focal-sound-card-vol ${active ? "is-visible" : ""}`}>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={Math.round((engine?.getVolume(s.id) ?? 0.5) * 100)}
-                        onChange={(e) => setVol(s.id, Number(e.target.value) / 100)}
-                        aria-label={`Volume for ${s.label}`}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
+          <div className="focal-sounds-grid">
+            {tiles.map((s) => {
+              const active = engine?.isPlaying(s.id) ?? false;
+              return (
+                <div
+                  key={s.id}
+                  className={`focal-sound-card ${active ? "is-active" : ""}`}
+                  style={{ backgroundImage: s.gradient }}
+                  title={s.tooltip}
+                >
+                  <div className="focal-sound-card-shade" aria-hidden />
+                  <button type="button" className="focal-sound-card-hit" onClick={() => void toggle(s.id)} aria-pressed={active}>
+                    <span className="focal-sound-card-icon">
+                      <SoundGlyph id={s.id} />
+                    </span>
+                    <span className="focal-sound-card-label">{s.label}</span>
+                  </button>
+                  <div className={`focal-sound-card-vol ${active ? "is-visible" : ""}`}>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={Math.round((engine?.getVolume(s.id) ?? 0.5) * 100)}
+                      onChange={(e) => setVol(s.id, Number(e.target.value) / 100)}
+                      aria-label={`Volume for ${s.label}`}
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   </div>
-                );
-              })}
-            </div>
-          ) : null}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
+      <div className="focal-panel-backdrop focal-sounds-backdrop" onClick={onClose} aria-hidden />
     </div>
   );
 }

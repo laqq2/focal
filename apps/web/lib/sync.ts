@@ -32,7 +32,7 @@ export function cacheRead<T>(key: string): T | null {
 export interface PendingWrite {
   id: string;
   table: string;
-  op: "upsert" | "delete" | "insert";
+  op: "upsert" | "delete" | "insert" | "update";
   payload: unknown;
   at: number;
 }
@@ -78,6 +78,10 @@ export async function flushPending(client: SupabaseClient) {
       }
       if (p.table === "focus_logs" && p.op === "insert") {
         await client.from("focus_logs").insert(p.payload as Record<string, unknown>);
+      }
+      if (p.table === "focus_logs" && p.op === "update") {
+        const row = p.payload as { id: string; patch: Record<string, unknown> };
+        await client.from("focus_logs").update(row.patch).eq("id", row.id);
       }
       if (p.table === "task_lists" && p.op === "upsert") {
         await client.from("task_lists").upsert(p.payload as Record<string, unknown>);

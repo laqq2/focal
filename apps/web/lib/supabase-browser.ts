@@ -6,5 +6,13 @@ export function createSupabaseBrowser() {
   if (!url || !key) {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
   }
-  return createClient(url, key);
+  return createClient(url, key, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: "pkce",
+      storage: typeof window !== "undefined" ? window.localStorage : undefined,
+    },
+  });
 }
