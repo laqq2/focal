@@ -1,8 +1,10 @@
 {
   "name": "Focal",
   "short_name": "Focal",
+  "description": "Calm focus, calendar, and LEARN — add to Home Screen for a PWA.",
   "start_url": "/app",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a"
 }

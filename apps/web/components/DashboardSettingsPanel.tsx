@@ -9,6 +9,7 @@ import {
   AccountSection,
   FocusSection,
   GeneralSection,
+  LearnSection,
   SETTINGS_NAV,
   type SettingsNavSection,
 } from "@/components/settings/SettingsFormSections";
@@ -77,6 +78,7 @@ export function DashboardSettingsPanel({
             />
           ) : null}
           {section === "focus" ? <FocusSection profile={profile} onSave={onSaveProfile} /> : null}
+          {section === "learn" ? <LearnSection profile={profile} onSave={onSaveProfile} /> : null}
           {section === "memento" ? (
             <section className="focal-settings-section">
               <h1>Memento mori</h1>

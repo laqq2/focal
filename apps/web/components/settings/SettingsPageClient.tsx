@@ -12,6 +12,7 @@ import {
   AccountSection,
   FocusSection,
   GeneralSection,
+  LearnSection,
   SETTINGS_NAV,
   type SettingsNavSection,
 } from "@/components/settings/SettingsFormSections";
@@ -54,6 +55,7 @@ export default function SettingsPageClient() {
             custom_quotes: null,
             show_memento_widget: false,
             theme: "photo",
+            learn_gemini_api_key: null,
           };
           await supabase.from("profiles").upsert(seed);
           setProfile(seed);
@@ -148,6 +150,7 @@ export default function SettingsPageClient() {
           />
         ) : null}
         {section === "focus" ? <FocusSection profile={profile} onSave={saveProfile} /> : null}
+        {section === "learn" ? <LearnSection profile={profile} onSave={saveProfile} /> : null}
         {section === "memento" ? (
           <section className="focal-settings-section">
             <h1>Memento mori</h1>

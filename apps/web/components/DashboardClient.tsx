@@ -6,11 +6,9 @@ import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import {
   BLOCKER_PRESETS,
-  computeMementoStats,
   formatGreetingLine,
   type BlockedSiteRow,
   type ClockFormat,
-  type DailyGoalRow,
   type FocusLogRow,
   type FocusSessionRow,
   type MementoEntryRow,
@@ -34,7 +32,6 @@ import {
   flushPending,
   loadBundle,
   subscribeFocus,
-  subscribeGoals,
   todayIsoLocal,
 } from "@/lib/sync";
 import { fetchUpcomingEvents, type CalendarEventItem } from "@/lib/calendar";
@@ -43,34 +40,20 @@ import { signInWithGoogleOAuth } from "@/lib/google-oauth";
 import { FocusOverlay, type FocusSessionEndPayload } from "@/components/FocusOverlay";
 import { TasksDock } from "@/components/TasksDock";
 import { DashboardSettingsPanel } from "@/components/DashboardSettingsPanel";
+import { LearnPanel } from "@/components/learn/LearnPanel";
 
 const MAIN_TAB_KEY = "focal_obs_main_tab";
-type MainTab = "focus" | "archive" | "wisdom";
+type MainTab = "focus" | "learn";
 
 function readMainTab(): MainTab {
   try {
     const v = localStorage.getItem(MAIN_TAB_KEY);
-    if (v === "focus" || v === "archive" || v === "wisdom") return v;
+    if (v === "focus" || v === "learn") return v;
+    if (v === "archive" || v === "wisdom") return "learn";
   } catch {
     /* ignore */
   }
-  return "wisdom";
-}
-
-function splitQuoteAttribution(text: string): { body: string; author: string | null } {
-  const em = text.lastIndexOf("—");
-  if (em >= 0) {
-    const body = text.slice(0, em).trim();
-    const author = text.slice(em + 1).trim() || null;
-    return { body: body || text, author };
-  }
-  const en = text.lastIndexOf("–");
-  if (en >= 0) {
-    const body = text.slice(0, en).trim();
-    const author = text.slice(en + 1).trim() || null;
-    return { body: body || text, author };
-  }
-  return { body: text, author: null };
+  return "focus";
 }
 
 function formatClock(date: Date, format: ClockFormat) {
@@ -108,6 +91,7 @@ function defaultProfile(userId: string): ProfileRow {
     custom_quotes: null,
     show_memento_widget: false,
     theme: "photo",
+    learn_gemini_api_key: null,
   };
 }
 
@@ -125,8 +109,6 @@ export default function DashboardClient() {
   }, [offlineFlash]);
   const [clock, setClock] = useState(() => new Date());
   const [profile, setProfile] = useState<ProfileRow | null>(null);
-  const [goalText, setGoalText] = useState("");
-  const [goalsRows, setGoalsRows] = useState<DailyGoalRow[]>([]);
   const [focusRows, setFocusRows] = useState<FocusSessionRow[]>([]);
   const [blocked, setBlocked] = useState<BlockedSiteRow[]>([]);
   const [blockerActive, setBlockerActive] = useState(false);
@@ -134,7 +116,8 @@ export default function DashboardClient() {
   const [bgBroken, setBgBroken] = useState(false);
 
   const [panel, setPanel] = useState<"none" | "calendar" | "settings">("none");
-  const [mainTab, setMainTab] = useState<MainTab>(() => (typeof window !== "undefined" ? readMainTab() : "wisdom"));
+  const [mainTab, setMainTab] = useState<MainTab>(() => (typeof window !== "undefined" ? readMainTab() : "focus"));
+  const [learnNeedsAttention, setLearnNeedsAttention] = useState(false);
   const [focusRunning, setFocusRunning] = useState(false);
   const [focusLogs, setFocusLogs] = useState<FocusLogRow[]>([]);
   const [taskLists, setTaskLists] = useState<TaskListRow[]>([]);
@@ -147,7 +130,6 @@ export default function DashboardClient() {
   const [extensionLoginTabOpenedAt, setExtensionLoginTabOpenedAt] = useState<number | null>(null);
   const [extensionLoginRefreshHint, setExtensionLoginRefreshHint] = useState(false);
 
-  const goalDebounce = useRef<number | null>(null);
   const settingsAnchorRef = useRef<HTMLButtonElement | null>(null);
   const [settingsDropdownLayout, setSettingsDropdownLayout] = useState<{
     top: number;
@@ -163,21 +145,6 @@ export default function DashboardClient() {
     return row?.minutes_focused ?? 0;
   }, [focusRows, today]);
 
-  const customQuoteLines = useMemo(() => {
-    return profile?.custom_quotes?.split("\n").map((l) => l.trim()).filter(Boolean) ?? [];
-  }, [profile?.custom_quotes]);
-
-  const dailyCustomQuote = useMemo(() => {
-    if (customQuoteLines.length === 0) return null;
-    const day = Math.floor(Date.now() / 86400000);
-    return customQuoteLines[Math.abs(day) % customQuoteLines.length] ?? null;
-  }, [customQuoteLines]);
-
-  const quoteParts = useMemo(() => {
-    if (!dailyCustomQuote) return { body: "", author: null as string | null };
-    return splitQuoteAttribution(dailyCustomQuote);
-  }, [dailyCustomQuote]);
-
   const name = profile?.name?.trim() || "Friend";
 
   const setMainTabPersist = useCallback((t: MainTab) => {
@@ -188,26 +155,6 @@ export default function DashboardClient() {
       /* ignore */
     }
   }, []);
-
-  const mementoPrimary = memento[0];
-  const mementoStats = useMemo(() => {
-    if (!mementoPrimary) return null;
-    return computeMementoStats({
-      label: mementoPrimary.label,
-      birthYear: mementoPrimary.birth_year,
-      birthDate: mementoPrimary.birth_date ?? null,
-      lifeExpectancy: mementoPrimary.life_expectancy ?? 82,
-    });
-  }, [mementoPrimary]);
-
-  const weeksMemento = useMemo(() => {
-    if (!mementoStats) return null;
-    const lived = Math.max(0, Math.floor(mementoStats.daysTogetherApprox / 7));
-    const left = Math.max(0, Math.floor(mementoStats.daysRemainingApprox / 7));
-    const span = Math.max(1, lived + left);
-    const livedRatio = Math.min(1, lived / span);
-    return { lived, left, livedRatio };
-  }, [mementoStats]);
 
   const upcomingSidebarEvents = useMemo(() => {
     if (!calendarEvents?.length) return [];
@@ -302,33 +249,26 @@ export default function DashboardClient() {
               await supabase.from("profiles").upsert(seed);
               setProfile(seed);
             }
-            setGoalsRows(bundle.goals);
             setFocusRows(bundle.focus);
             setFocusLogs(bundle.focusLogs ?? []);
             setBlocked(bundle.blocked);
             setMemento(bundle.memento);
             setTaskLists(bundle.taskLists ?? []);
             setTaskRows(bundle.tasks ?? []);
-            const g = bundle.goals.find((x) => x.date === today);
-            setGoalText(g?.goal ?? "");
           } catch {
             const cache = cachedBundle();
             if (cache.profile) setProfile(cache.profile);
-            setGoalsRows(cache.goals);
             setFocusRows(cache.focus);
             setFocusLogs(cache.focusLogs ?? []);
             setBlocked(cache.blocked);
             setMemento(cache.memento);
             setTaskLists(cache.taskLists ?? []);
             setTaskRows(cache.tasks ?? []);
-            const g = cache.goals.find((x) => x.date === today);
-            setGoalText(g?.goal ?? "");
             setOfflineFlash(true);
           }
         } else {
           const cache = cachedBundle();
           if (cache.profile) setProfile(cache.profile);
-          setGoalsRows(cache.goals);
           setFocusRows(cache.focus);
           setFocusLogs(cache.focusLogs ?? []);
           setBlocked(cache.blocked);
@@ -411,15 +351,36 @@ export default function DashboardClient() {
 
   useEffect(() => {
     if (!session?.user) return;
-    const g = subscribeGoals(supabase, session.user.id, (rows) => {
-      setGoalsRows(rows);
-      const row = rows.find((x) => x.date === today);
-      if (row?.goal != null) setGoalText(row.goal);
-    });
     const f = subscribeFocus(supabase, session.user.id, (rows) => setFocusRows(rows));
     return () => {
-      supabase.removeChannel(g);
       supabase.removeChannel(f);
+    };
+  }, [session, supabase]);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    let cancelled = false;
+    const tick = async () => {
+      const { data } = await supabase
+        .from("daily_priorities")
+        .select("priority_1_title,priority_2_title,eod_completed_at")
+        .eq("user_id", session.user.id)
+        .eq("date", today)
+        .maybeSingle();
+      if (cancelled) return;
+      if (!data) {
+        setLearnNeedsAttention(true);
+        return;
+      }
+      const missing = !data.priority_1_title?.trim() || !data.priority_2_title?.trim();
+      const eodPending = new Date().getHours() >= 19 && !data.eod_completed_at;
+      setLearnNeedsAttention(missing || Boolean(eodPending));
+    };
+    void tick();
+    const id = window.setInterval(() => void tick(), 60000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
     };
   }, [session, supabase, today]);
 
@@ -438,47 +399,6 @@ export default function DashboardClient() {
       active: blockerActive,
     });
   }, [blocked, blockerActive]);
-
-  const persistGoalRemote = useCallback(
-    async (text: string) => {
-      if (!session?.user) return;
-      const payload = {
-        user_id: session.user.id,
-        date: today,
-        goal: text,
-        updated_at: new Date().toISOString(),
-      };
-      try {
-        await supabase.from("daily_goals").upsert(payload, { onConflict: "user_id,date" });
-      } catch {
-        enqueuePending({
-          id: crypto.randomUUID(),
-          table: "daily_goals",
-          op: "upsert",
-          payload,
-          at: Date.now(),
-        });
-        setOfflineFlash(true);
-      }
-    },
-    [session, supabase, today]
-  );
-
-  const onGoalChange = (v: string) => {
-    setGoalText(v);
-    if (goalDebounce.current) window.clearTimeout(goalDebounce.current);
-    goalDebounce.current = window.setTimeout(() => {
-      void persistGoalRemote(v);
-    }, 450);
-  };
-
-  const flushGoalNow = useCallback(() => {
-    if (goalDebounce.current) {
-      window.clearTimeout(goalDebounce.current);
-      goalDebounce.current = null;
-    }
-    void persistGoalRemote(goalText);
-  }, [goalText, persistGoalRemote]);
 
   const handleFocusSessionEnd = useCallback(
     async (payload: FocusSessionEndPayload) => {
@@ -811,9 +731,16 @@ export default function DashboardClient() {
         <main className="focal-obs-main">
           <div className="focal-obs-main-top">
             <nav className="focal-obs-main-tabs" aria-label="Main views">
-              {(["wisdom", "archive", "focus"] as const).map((t) => (
+              {(["focus", "learn"] as const).map((t) => (
                 <button key={t} type="button" className={mainTab === t ? "active" : ""} onClick={() => setMainTabPersist(t)}>
-                  {t === "focus" ? "Focus" : t === "archive" ? "Archive" : "Wisdom"}
+                  {t === "focus" ? (
+                    "Focus"
+                  ) : (
+                    <span className="focal-obs-main-tab-label">
+                      Learn
+                      {learnNeedsAttention ? <span className="focal-obs-main-tab-dot" aria-hidden /> : null}
+                    </span>
+                  )}
                 </button>
               ))}
             </nav>
@@ -848,113 +775,40 @@ export default function DashboardClient() {
             </div>
           </div>
 
-          {mainTab === "wisdom" ? (
-            <div className="focal-obs-tab-panel focal-obs-tab-wisdom">
-              <div className="focal-obs-hero-wrap">
-                <p className="focal-obs-hero-eyebrow focal-obs-eyebrow-gold">Remaining time</p>
-                {weeksMemento ? (
-                  <div className="focal-obs-life-bar-block">
-                    <div className="focal-obs-life-bar" role="img" aria-label="Weeks lived versus weeks that may remain in your model">
-                      <div className="focal-obs-life-bar-track">
-                        <div
-                          className="focal-obs-life-bar-lived"
-                          style={{ flexGrow: Math.max(0.04, weeksMemento.livedRatio), flexShrink: 1, flexBasis: 0 }}
-                        />
-                        <div
-                          className="focal-obs-life-bar-left"
-                          style={{ flexGrow: Math.max(0.04, 1 - weeksMemento.livedRatio), flexShrink: 1, flexBasis: 0 }}
-                        />
-                      </div>
-                    </div>
-                    <div className="focal-obs-life-bar-labels">
-                      <div className="focal-obs-life-stat focal-obs-life-stat--past">
-                        <span className="focal-obs-life-num">{weeksMemento.lived.toLocaleString("en-US")}</span>
-                        <span className="focal-obs-life-caption">weeks lived</span>
-                      </div>
-                      <div className="focal-obs-life-stat focal-obs-life-stat--future">
-                        <span className="focal-obs-life-num">{weeksMemento.left.toLocaleString("en-US")}</span>
-                        <span className="focal-obs-life-caption">weeks still yours</span>
-                      </div>
-                    </div>
-                    <p className="focal-obs-life-urgency">The right side is not guaranteed — only gone is certain.</p>
-                  </div>
-                ) : (
-                  <p className="focal-obs-hero-hint">Add your birth date under Settings → Memento mori to see your modeled weeks.</p>
-                )}
-              </div>
-
-              {dailyCustomQuote ? (
-                <figure className="focal-obs-quote">
-                  <blockquote className="focal-obs-quote-body">
-                    {"\u201C"}
-                    {quoteParts.body}
-                    {"\u201D"}
-                  </blockquote>
-                  {quoteParts.author ? <figcaption className="focal-obs-quote-by">— {quoteParts.author.toUpperCase()}</figcaption> : null}
-                </figure>
-              ) : (
-                <p className="focal-obs-quote-empty">
-                  Your Wisdom tab only shows lines you add under Settings → General → Custom quotes (one per line).
-                </p>
-              )}
-
-              <div className="focal-obs-goal">
-                <label className="focal-obs-goal-label" htmlFor="focal-main-goal">
-                  What is your main goal for today?
-                </label>
-                <div className="focal-obs-goal-row">
-                  <input
-                    id="focal-main-goal"
-                    value={goalText}
-                    onChange={(e) => onGoalChange(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        flushGoalNow();
-                      }
-                    }}
-                    placeholder="Enter silence and focus…"
-                    autoComplete="off"
-                  />
-                  <span className="focal-obs-goal-return" aria-hidden title="Press Enter to save">
-                    ↵
-                  </span>
-                </div>
-              </div>
+          {mainTab === "learn" && session?.user ? (
+            <div className="focal-obs-tab-panel focal-obs-tab-learn">
+              <LearnPanel
+                supabase={supabase}
+                userId={session.user.id}
+                displayName={name}
+                clock={clock}
+                focusLogs={focusLogs}
+                onFocusLogUpdated={(row) => setFocusLogs((rows) => rows.map((r) => (r.id === row.id ? row : r)))}
+                onSyncError={() => setOfflineFlash(true)}
+                accessToken={session.access_token}
+                onAttentionChange={setLearnNeedsAttention}
+              />
             </div>
           ) : null}
 
-          {mainTab === "archive" ? (
-            <div className="focal-obs-tab-panel focal-obs-tab-archive">
-              <h2 className="focal-obs-archive-title">Session archive</h2>
-              {focusLogs.length === 0 ? (
-                <p className="focal-obs-archive-empty">Completed focus sessions will appear here.</p>
-              ) : (
-                <div className="focal-obs-archive-list">
-                  {focusLogs.map((log) => (
-                    <FocusHistoryCard
-                      key={log.id}
-                      log={log}
-                      supabase={supabase}
-                      onUpdated={(row) => setFocusLogs((rows) => rows.map((r) => (r.id === row.id ? row : r)))}
-                      onSyncError={() => setOfflineFlash(true)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : null}
-
-          <div className="focal-obs-tab-panel focal-obs-tab-focus" hidden={mainTab !== "focus"}>
+          {mainTab === "focus" ? (
+          <div className="focal-obs-tab-panel focal-obs-tab-focus">
             <FocusOverlay
               variant="inline"
               open={mainTab === "focus"}
-              onClose={() => setMainTabPersist("wisdom")}
+              onClose={() => setMainTabPersist("focus")}
               defaultFocusMinutes={profile?.focus_duration ?? 25}
               defaultBreakMinutes={profile?.break_duration ?? 5}
               onSessionEnd={(p) => void handleFocusSessionEnd(p)}
               onRunningChange={setFocusRunning}
-              onOpenHistory={() => setMainTabPersist("archive")}
+              onOpenHistory={() => {
+                try {
+                  localStorage.setItem("focal_learn_sub_tab", "sessions");
+                } catch {
+                  /* ignore */
+                }
+                setMainTabPersist("learn");
+              }}
             />
             <details className="focal-obs-focus-blocker">
               <summary>Site blocker</summary>
@@ -992,6 +846,7 @@ export default function DashboardClient() {
               </div>
             </details>
           </div>
+          ) : null}
         </main>
       </div>
 
@@ -1091,121 +946,6 @@ export default function DashboardClient() {
           onSyncError={() => setOfflineFlash(true)}
         />
       ) : null}
-    </div>
-  );
-}
-
-function FocusHistoryCard({
-  log,
-  supabase,
-  onUpdated,
-  onSyncError,
-}: {
-  log: FocusLogRow;
-  supabase: ReturnType<typeof createSupabaseBrowser>;
-  onUpdated: (row: FocusLogRow) => void;
-  onSyncError: () => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [intent, setIntent] = useState(log.intent ?? "");
-  const [actual, setActual] = useState(log.actual_minutes);
-  const [planned, setPlanned] = useState(log.planned_minutes);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setIntent(log.intent ?? "");
-    setActual(log.actual_minutes);
-    setPlanned(log.planned_minutes);
-  }, [log.id, log.intent, log.actual_minutes, log.planned_minutes]);
-
-  const ended = new Date(log.ended_at);
-  const raw = log.distractions as unknown;
-  const dist = Array.isArray(raw) ? (raw as { note: string }[]) : [];
-
-  const save = async () => {
-    setSaving(true);
-    const patch = {
-      intent: intent.trim() || null,
-      actual_minutes: Math.min(480, Math.max(0, Math.round(actual))),
-      planned_minutes: Math.min(480, Math.max(1, Math.round(planned))),
-    };
-    try {
-      const { data, error } = await supabase.from("focus_logs").update(patch).eq("id", log.id).select("*").maybeSingle();
-      if (error) throw error;
-      if (data) onUpdated(data as FocusLogRow);
-      setEditing(false);
-    } catch {
-      enqueuePending({
-        id: crypto.randomUUID(),
-        table: "focus_logs",
-        op: "update",
-        payload: { id: log.id, patch },
-        at: Date.now(),
-      });
-      onSyncError();
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="focal-history-card">
-      <div className="focal-history-meta">
-        {ended.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })} · {log.actual_minutes}m focused
-        {log.planned_minutes ? ` · ${log.planned_minutes}m planned` : ""}
-        <button type="button" className="focal-history-edit-btn" onClick={() => setEditing((e) => !e)}>
-          {editing ? "Cancel" : "Edit"}
-        </button>
-      </div>
-      {editing ? (
-        <div className="focal-history-edit">
-          <label className="focal-history-edit-label">
-            Focus note
-            <input className="focal-input" value={intent} onChange={(e) => setIntent(e.target.value)} />
-          </label>
-          <div className="focal-history-edit-row">
-            <label className="focal-history-edit-label">
-              Actual minutes
-              <input
-                className="focal-input"
-                type="number"
-                min={0}
-                max={480}
-                value={actual}
-                onChange={(e) => setActual(Number(e.target.value))}
-              />
-            </label>
-            <label className="focal-history-edit-label">
-              Planned minutes
-              <input
-                className="focal-input"
-                type="number"
-                min={1}
-                max={480}
-                value={planned}
-                onChange={(e) => setPlanned(Number(e.target.value))}
-              />
-            </label>
-          </div>
-          <button className="focal-btn primary" type="button" disabled={saving} onClick={() => void save()}>
-            {saving ? "Saving…" : "Save changes"}
-          </button>
-        </div>
-      ) : (
-        <>
-          {log.intent ? <p className="focal-history-intent">{log.intent}</p> : <p className="focal-history-intent" style={{ opacity: 0.55 }}>No focus note</p>}
-          {dist.length ? (
-            <div style={{ marginTop: "0.35rem" }}>
-              <div style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)", marginBottom: "0.25rem" }}>Distractions</div>
-              {dist.map((d, i) => (
-                <div key={i} className="focal-history-dist">
-                  {d.note}
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </>
-      )}
     </div>
   );
 }

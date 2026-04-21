@@ -118,3 +118,5 @@ create policy "tasks are self" on tasks
 -- In Supabase Dashboard → Database → Replication, enable Realtime for:
 --   daily_goals
 --   focus_sessions
+
+-- LEARN / ICS: run migration-learn-ics.sql (daily_priorities, session_logs, kolbs_entries, weekly_summaries, profiles.learn_gemini_api_key).

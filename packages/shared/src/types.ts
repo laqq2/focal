@@ -16,6 +16,8 @@ export interface ProfileRow {
   custom_quotes: string | null;
   show_memento_widget: boolean;
   theme: ThemeMode;
+  /** Optional; used server-side for LEARN weekly AI summaries if set. */
+  learn_gemini_api_key?: string | null;
   updated_at?: string;
 }
 

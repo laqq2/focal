@@ -26,12 +26,13 @@ export function SettingsAppRow({
   );
 }
 
-export type SettingsNavSection = "general" | "account" | "focus" | "memento" | "calendar" | "help";
+export type SettingsNavSection = "general" | "account" | "focus" | "learn" | "memento" | "calendar" | "help";
 
 export const SETTINGS_NAV: { id: SettingsNavSection; label: string }[] = [
   { id: "general", label: "General" },
   { id: "account", label: "Account" },
   { id: "focus", label: "Focus" },
+  { id: "learn", label: "Learn" },
   { id: "memento", label: "Memento mori" },
   { id: "calendar", label: "Calendar" },
   { id: "help", label: "Help" },
@@ -98,7 +99,7 @@ export function GeneralSection({
         />
         <SettingsAppRow
           title="Quotes"
-          description="Curated lines for the Wisdom tab."
+          description="Quote style for custom lines below (choose Custom to edit)."
           control={
             <select className="focal-input focal-settings-input-inline" value={quoteStyle} onChange={(e) => setQuoteStyle(e.target.value as QuoteStyle)}>
               <option value="theology">Theology</option>
@@ -257,6 +258,61 @@ export function AccountSection({
         <button className="focal-btn" type="button" onClick={onReset}>
           Reset local data &amp; sign out
         </button>
+      </div>
+    </section>
+  );
+}
+
+export function LearnSection({
+  profile,
+  onSave,
+}: {
+  profile: ProfileRow | null;
+  onSave: (p: Partial<ProfileRow>) => Promise<void>;
+}) {
+  const [key, setKey] = useState(profile?.learn_gemini_api_key ?? "");
+
+  useEffect(() => {
+    setKey(profile?.learn_gemini_api_key ?? "");
+  }, [profile?.learn_gemini_api_key]);
+
+  if (!profile) {
+    return (
+      <section className="focal-settings-section">
+        <h1>Learn</h1>
+        <p className="focal-settings-sub">Loading…</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="focal-settings-section">
+      <h1>Learn</h1>
+      <p className="focal-settings-sub">Weekly AI summaries (Gemini). You can also set GEMINI_API_KEY on the server instead.</p>
+      <div className="focal-settings-card focal-settings-card--apps">
+        <SettingsAppRow
+          title="Gemini API key"
+          description="Stored with your profile for generating LEARN weekly reviews. Leave blank to use only the server env var."
+          control={
+            <input
+              className="focal-input focal-settings-input-inline"
+              type="password"
+              autoComplete="off"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder="Optional"
+            />
+          }
+        />
+        <div className="focal-settings-app-actions">
+          <button
+            className="focal-btn primary"
+            type="button"
+            onClick={() => void onSave({ learn_gemini_api_key: key.trim() || null })}
+          >
+            Save
+          </button>
+        </div>
       </div>
     </section>
   );
