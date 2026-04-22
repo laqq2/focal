@@ -5,6 +5,8 @@ import type {
   DailyPrioritiesRow,
   EisenhowerQuadrant,
   EodResult,
+  ExperimentRow,
+  GoalRow,
   PriorityStatus,
 } from "@focal/shared";
 import { EISENHOWER_LABELS } from "@focal/shared";
@@ -36,6 +38,9 @@ function emptyRow(userId: string, date: string): DailyPrioritiesRow {
     eod_p1_result: null,
     eod_p2_result: null,
     eod_completed_at: null,
+    priority_1_goal_id: null,
+    priority_2_goal_id: null,
+    experiment_notes: null,
   } as DailyPrioritiesRow;
 }
 
@@ -46,6 +51,7 @@ export function LearnToday({
   clock,
   onSyncError,
   onUpdated,
+  onOpenKolbs,
 }: {
   supabase: ReturnType<typeof createSupabaseBrowser>;
   userId: string;
@@ -53,6 +59,7 @@ export function LearnToday({
   clock: Date;
   onSyncError: () => void;
   onUpdated: () => void;
+  onOpenKolbs?: () => void;
 }) {
   const today = todayIsoLocal();
   const tomorrow = addDaysIso(today, 1);
@@ -67,6 +74,9 @@ export function LearnToday({
   const [eodOff, setEodOff] = useState("");
   const [nextP1, setNextP1] = useState("");
   const [nextP2, setNextP2] = useState("");
+  const [eodExperimentNotes, setEodExperimentNotes] = useState("");
+  const [activeGoals, setActiveGoals] = useState<GoalRow[]>([]);
+  const [testingEx, setTestingEx] = useState<(ExperimentRow & { skill?: { name: string } | null })[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,6 +95,7 @@ export function LearnToday({
         setEodP1((data.eod_p1_result as EodResult) || "");
         setEodP2((data.eod_p2_result as EodResult) || "");
         setEodOff(data.off_track_reason || "");
+        setEodExperimentNotes((data as DailyPrioritiesRow).experiment_notes || "");
       }
       const { data: trow } = await supabase
         .from("daily_priorities")
@@ -103,9 +114,27 @@ export function LearnToday({
     }
   }, [supabase, userId, today, tomorrow]);
 
+  const loadGoalsExperiments = useCallback(async () => {
+    try {
+      const [{ data: g }, { data: ex }] = await Promise.all([
+        supabase.from("goals").select("*").eq("user_id", userId).eq("status", "active").order("title"),
+        supabase.from("experiments").select("*, skill:skills(name)").eq("user_id", userId).eq("status", "testing").limit(12),
+      ]);
+      setActiveGoals((g as GoalRow[]) ?? []);
+      setTestingEx((ex as typeof testingEx) ?? []);
+    } catch {
+      setActiveGoals([]);
+      setTestingEx([]);
+    }
+  }, [supabase, userId]);
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void loadGoalsExperiments();
+  }, [loadGoalsExperiments]);
 
   useEffect(() => {
     if (hour >= 19) setEodOpen(true);
@@ -150,6 +179,7 @@ export function LearnToday({
       eod_p2_result: eodP2,
       off_track_reason: eodOff.trim() || null,
       eod_completed_at: now,
+      experiment_notes: eodExperimentNotes.trim() || null,
     });
     await supabase.from("daily_priorities").upsert(
       {
@@ -172,19 +202,37 @@ export function LearnToday({
   };
 
   if (loading || !row) {
-    return <p className="focal-learn-muted">Loading today…</p>;
+    return (
+      <div className="focal-learn-page focal-learn-fade focal-learn-today-boot" aria-busy="true">
+        <div className="focal-goals-skeleton">
+          <div className="focal-kolbs-skeleton-line" style={{ width: "50%" }} />
+          <div className="focal-kolbs-skeleton-line" style={{ width: "85%" }} />
+          <div className="focal-kolbs-skeleton-block" />
+          <div className="focal-kolbs-skeleton-block focal-kolbs-skeleton-block--short" />
+        </div>
+      </div>
+    );
   }
 
   const r = row;
+  const timeLabel = clock.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 
   return (
     <div className="focal-learn-page focal-learn-fade">
-      <h2 className="focal-learn-greeting">
-        Good {greeting}, {displayName}
-      </h2>
+      <header className="focal-learn-hero">
+        <p className="focal-learn-hero__kicker">Command center</p>
+        <h2 className="focal-learn-hero__title">
+          Good {greeting}, {displayName}
+        </h2>
+        <p className="focal-learn-hero__meta">{timeLabel}</p>
+      </header>
 
-      <section className="focal-learn-section">
-        <h3 className="focal-learn-h">Priorities</h3>
+      <section className="focal-learn-section focal-learn-section--anchor">
+        <div className="focal-learn-section-head">
+          <span className="focal-learn-section-eyebrow">Focus</span>
+          <h3 className="focal-learn-section-title">Two priorities</h3>
+        </div>
+        <p className="focal-learn-hint focal-learn-hint--tight">Name what moves the needle. MVG is your floor, not the ceiling.</p>
         <div className={`focal-learn-priority-grid ${disruptionUi ? "focal-learn-priority-grid--dim" : ""}`}>
           {[1, 2].map((n) => {
             const title = n === 1 ? r.priority_1_title : r.priority_2_title;
@@ -193,9 +241,17 @@ export function LearnToday({
             const st = (n === 1 ? r.priority_1_status : r.priority_2_status) as PriorityStatus;
             const set = (patch: Partial<DailyPrioritiesRow>) => void persist(patch);
             return (
-              <div key={n} className="focal-learn-card">
+              <div
+                key={n}
+                className={`focal-learn-card focal-learn-priority-card ${n === 1 ? "focal-learn-priority-card--p1" : "focal-learn-priority-card--p2"}`}
+              >
                 <div className="focal-learn-priority-head">
-                  <span className="focal-learn-priority-label">Priority {n}</span>
+                  <div className="focal-learn-priority-label-row">
+                    <span className="focal-learn-priority-label">Priority {n}</span>
+                    <span className={`focal-learn-quad-badge focal-learn-quad-badge--${quad}`} title={EISENHOWER_LABELS[quad]}>
+                      {quad}
+                    </span>
+                  </div>
                   <select
                     className="focal-learn-select"
                     value={st}
@@ -261,6 +317,27 @@ export function LearnToday({
                         placeholder="Minimum if the day collapses"
                       />
                     </label>
+                    <label className="focal-learn-field">
+                      Link to goal (optional)
+                      <select
+                        className="focal-learn-select"
+                        value={(n === 1 ? r.priority_1_goal_id : r.priority_2_goal_id) ?? ""}
+                        onChange={(e) =>
+                          set(
+                            n === 1
+                              ? { priority_1_goal_id: e.target.value || null }
+                              : { priority_2_goal_id: e.target.value || null }
+                          )
+                        }
+                      >
+                        <option value="">—</option>
+                        {activeGoals.map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </>
                 )}
               </div>
@@ -277,8 +354,35 @@ export function LearnToday({
         </button>
       </section>
 
-      <section className="focal-learn-section">
-        <h3 className="focal-learn-h">Important · not urgent</h3>
+      {testingEx.length > 0 ? (
+        <section className="focal-learn-section focal-learn-experiments-today">
+          <div className="focal-learn-eod-head">
+            <div>
+              <span className="focal-learn-section-eyebrow">Experiments</span>
+              <h3 className="focal-learn-section-title focal-learn-section-title--sm">Currently testing</h3>
+            </div>
+            <button type="button" className="focal-learn-text-btn" onClick={() => onOpenKolbs?.()}>
+              See all in Kolb&apos;s
+            </button>
+          </div>
+          <ul className="focal-today-ex-list">
+            {testingEx.slice(0, 3).map((ex) => (
+              <li key={ex.id}>
+                <button type="button" className="focal-today-ex-row" onClick={() => onOpenKolbs?.()}>
+                  <span className="focal-level-badge subtle">{ex.skill?.name ?? "Skill"}</span>
+                  <span className="focal-today-ex-desc">{ex.description.length > 90 ? `${ex.description.slice(0, 90)}…` : ex.description}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section className="focal-learn-section focal-learn-section-panel focal-learn-section-panel--inu">
+        <div className="focal-learn-section-head">
+          <span className="focal-learn-section-eyebrow">Quadrant II</span>
+          <h3 className="focal-learn-section-title">Important · not urgent</h3>
+        </div>
         <p className="focal-learn-hint">Protect one non-urgent important block this week.</p>
         <label className="focal-learn-check">
           <input
@@ -299,9 +403,12 @@ export function LearnToday({
         </label>
       </section>
 
-      <section className="focal-learn-section">
+      <section className="focal-learn-section focal-learn-section-panel focal-learn-section-panel--eod">
         <div className="focal-learn-eod-head">
-          <h3 className="focal-learn-h">End of day check-in</h3>
+          <div>
+            <span className="focal-learn-section-eyebrow">Closure</span>
+            <h3 className="focal-learn-section-title">End of day check-in</h3>
+          </div>
           {hour < 19 ? (
             <button type="button" className="focal-learn-text-btn" onClick={() => setEodOpen((o) => !o)}>
               {showEod ? "Hide" : "Open now"}
@@ -340,6 +447,15 @@ export function LearnToday({
                 <input className="focal-input focal-learn-input" value={eodOff} onChange={(e) => setEodOff(e.target.value)} />
               </label>
               <label className="focal-learn-field">
+                Any experiment observations today? (optional)
+                <textarea
+                  className="focal-input focal-learn-textarea"
+                  rows={2}
+                  value={eodExperimentNotes}
+                  onChange={(e) => setEodExperimentNotes(e.target.value)}
+                />
+              </label>
+              <label className="focal-learn-field">
                 Tomorrow priority 1
                 <input
                   className="focal-input focal-learn-input"
@@ -357,11 +473,11 @@ export function LearnToday({
               </label>
               <button
                 type="button"
-                className="focal-btn primary focal-learn-eod-submit"
+                className="focal-btn primary focal-learn-eod-submit focal-learn-seal-day"
                 disabled={!eodP1 || !eodP2 || !nextP1.trim() || !nextP2.trim()}
                 onClick={() => void submitEod()}
               >
-                Save check-in (&lt;60s)
+                Seal the day
               </button>
             </div>
           )

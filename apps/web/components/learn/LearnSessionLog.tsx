@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { FocusLogRow, SessionLogRow } from "@focal/shared";
+import type { ExperimentRow, FocusLogRow, GoalRow, SessionLogRow } from "@focal/shared";
 import type { createSupabaseBrowser } from "@/lib/supabase-browser";
 import { enqueuePending } from "@/lib/sync";
 import { todayIsoLocal } from "@/lib/sync";
@@ -38,6 +38,10 @@ export function LearnSessionLog({
   const [sessionType, setSessionType] = useState<"theory" | "practice">("practice");
   const [timerRun, setTimerRun] = useState(false);
   const [timerSec, setTimerSec] = useState(0);
+  const [sessionGoalId, setSessionGoalId] = useState<string>("");
+  const [sessionExperimentId, setSessionExperimentId] = useState<string>("");
+  const [activeGoals, setActiveGoals] = useState<(GoalRow & { goal_areas?: { color_tag: string } | null })[]>([]);
+  const [testingExperiments, setTestingExperiments] = useState<ExperimentRow[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,9 +61,27 @@ export function LearnSessionLog({
     }
   }, [supabase, userId]);
 
+  const loadGoalsEx = useCallback(async () => {
+    try {
+      const [{ data: g }, { data: ex }] = await Promise.all([
+        supabase.from("goals").select("*, goal_areas(color_tag)").eq("user_id", userId).eq("status", "active"),
+        supabase.from("experiments").select("*").eq("user_id", userId).eq("status", "testing"),
+      ]);
+      setActiveGoals((g as typeof activeGoals) ?? []);
+      setTestingExperiments((ex as ExperimentRow[]) ?? []);
+    } catch {
+      setActiveGoals([]);
+      setTestingExperiments([]);
+    }
+  }, [supabase, userId]);
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void loadGoalsEx();
+  }, [loadGoalsEx]);
 
   useEffect(() => {
     if (!timerRun) return;
@@ -128,6 +150,8 @@ export function LearnSessionLog({
       goal_hit: goalHit,
       distractions: distractions.trim() || null,
       session_type: sessionType,
+      goal_id: sessionGoalId || null,
+      experiment_id: sessionExperimentId || null,
     };
     try {
       const { data, error } = await supabase.from("session_logs").insert(row).select("*").maybeSingle();
@@ -140,6 +164,8 @@ export function LearnSessionLog({
       setTimerRun(false);
       setTimerSec(0);
       setDurationMins(25);
+      setSessionGoalId("");
+      setSessionExperimentId("");
     } catch {
       enqueuePending({
         id: crypto.randomUUID(),
@@ -154,11 +180,27 @@ export function LearnSessionLog({
 
   const maxDay = Math.max(1, ...Object.values(dayTotals));
 
+  const goalColor = (gid: string | null | undefined) => {
+    if (!gid) return undefined;
+    const g = activeGoals.find((x) => x.id === gid);
+    return g?.goal_areas?.color_tag ?? "#8b7bb8";
+  };
+
   return (
     <div className="focal-learn-page focal-learn-fade">
-      <section className="focal-learn-section">
-        <h3 className="focal-learn-h">Log a session</h3>
-        <p className="focal-learn-hint">Measurable goal, then honest close-out.</p>
+      <header className="focal-learn-hero">
+        <p className="focal-learn-hero__kicker">Evidence of work</p>
+        <h2 className="focal-learn-hero__title">Session log</h2>
+        <p className="focal-learn-hero__sub">Document the architectural evolution of thought — theory, practice, and honest close-out.</p>
+      </header>
+
+      <section className="focal-learn-section focal-learn-section--anchor">
+        <div className="focal-learn-section-head">
+          <span className="focal-learn-section-eyebrow">Log</span>
+          <h3 className="focal-learn-section-title">Commit a session</h3>
+        </div>
+        <p className="focal-learn-hint focal-learn-hint--tight">Use a measurable session goal, then say whether you hit it.</p>
+        <div className="focal-learn-panel focal-learn-panel--form">
         <div className="focal-learn-form">
           <label className="focal-learn-field">
             Subject / project
@@ -235,6 +277,34 @@ export function LearnSessionLog({
           </label>
 
           <label className="focal-learn-field">
+            Which goal? (optional)
+            <select className="focal-learn-select" value={sessionGoalId} onChange={(e) => setSessionGoalId(e.target.value)}>
+              <option value="">—</option>
+              {activeGoals.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="focal-learn-field">
+            Testing an experiment? (optional)
+            <select
+              className="focal-learn-select"
+              value={sessionExperimentId}
+              onChange={(e) => setSessionExperimentId(e.target.value)}
+            >
+              <option value="">—</option>
+              {testingExperiments.map((ex) => (
+                <option key={ex.id} value={ex.id}>
+                  {ex.description.slice(0, 48)}
+                  {ex.description.length > 48 ? "…" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="focal-learn-field">
             Hit the goal?
             <select className="focal-learn-select" value={goalHit} onChange={(e) => setGoalHit(e.target.value as typeof goalHit)}>
               <option value="">—</option>
@@ -265,20 +335,24 @@ export function LearnSessionLog({
 
           <button
             type="button"
-            className="focal-btn primary"
+            className="focal-btn primary focal-learn-commit-session"
             disabled={!subject.trim() || !goalHit}
             onClick={() => void submitSession()}
             onKeyDown={(e) => {
               if (e.key === "Enter" && subject.trim() && goalHit) void submitSession();
             }}
           >
-            Save session
+            Commit session
           </button>
+        </div>
         </div>
       </section>
 
-      <section className="focal-learn-section">
-        <h3 className="focal-learn-h">Today</h3>
+      <section className="focal-learn-section focal-learn-section-panel focal-learn-section-panel--stats">
+        <div className="focal-learn-section-head">
+          <span className="focal-learn-section-eyebrow">Today</span>
+          <h3 className="focal-learn-section-title">Today&apos;s volume</h3>
+        </div>
         <p className="focal-learn-stat-line">
           <strong>{(todayMins / 60).toFixed(1)}</strong> hours focused today (study sessions)
         </p>
@@ -291,7 +365,12 @@ export function LearnSessionLog({
             {todaySessions.map((s) => (
               <li key={s.id} className="focal-learn-session-item">
                 <div className="focal-learn-session-top">
-                  <span>{s.subject}</span>
+                  <span className="focal-learn-session-subj">
+                    {s.goal_id ? (
+                      <span className="focal-session-goal-dot" style={{ background: goalColor(s.goal_id) }} aria-hidden />
+                    ) : null}
+                    {s.subject}
+                  </span>
                   <span className="focal-learn-muted">
                     {s.duration_mins}m · Q{s.focus_quality} · {s.session_type}
                   </span>
@@ -303,8 +382,11 @@ export function LearnSessionLog({
         )}
       </section>
 
-      <section className="focal-learn-section">
-        <h3 className="focal-learn-h">This week</h3>
+      <section className="focal-learn-section focal-learn-section-panel focal-learn-section-panel--week">
+        <div className="focal-learn-section-head">
+          <span className="focal-learn-section-eyebrow">Equilibrium</span>
+          <h3 className="focal-learn-section-title">This week</h3>
+        </div>
         <p className="focal-learn-muted">
           Practice : theory (mins) — {practiceM} : {theoryM}. Target at least <strong>5 : 1</strong> practice to theory.
         </p>
@@ -332,8 +414,11 @@ export function LearnSessionLog({
       </section>
 
       <section className="focal-learn-section">
-        <h3 className="focal-learn-h">Focal focus archive</h3>
-        <p className="focal-learn-hint">Sessions from the built-in focus timer.</p>
+        <div className="focal-learn-section-head">
+          <span className="focal-learn-section-eyebrow">Timer</span>
+          <h3 className="focal-learn-section-title">Focal focus archive</h3>
+        </div>
+        <p className="focal-learn-hint">Completed runs from the built-in focus timer.</p>
         {focusLogs.length === 0 ? (
           <p className="focal-learn-empty">Completed focus sessions will appear here.</p>
         ) : (

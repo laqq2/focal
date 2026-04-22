@@ -60,11 +60,22 @@ export async function POST(req: NextRequest) {
   const days: string[] = [];
   for (let i = 0; i < 7; i++) days.push(addDaysIso(weekStart, i));
 
-  const [priorities, sessions, kolbs] = await Promise.all([
+  const [priorities, sessions, kolbs, experimentsWeek, skillHistWeek] = await Promise.all([
     db.from("daily_priorities").select("*").eq("user_id", userId).gte("date", weekStart).lte("date", weekEnd),
     db.from("session_logs").select("*").eq("user_id", userId).gte("date", weekStart).lte("date", weekEnd),
     db.from("kolbs_entries").select("*").eq("user_id", userId).eq("week_start_date", weekStart),
+    db.from("experiments").select("*").eq("user_id", userId),
+    db.from("skill_level_history").select("*").eq("user_id", userId).gte("changed_at", `${weekStart}T00:00:00`).lte("changed_at", `${weekEnd}T23:59:59`),
   ]);
+
+  const exRows = (experimentsWeek.data ?? []) as Record<string, unknown>[];
+  const testingThisWeek = exRows.filter((e) => e.status === "testing");
+  const exStateChanges = exRows.filter((e) => {
+    const ca = e.created_at as string | undefined;
+    if (!ca) return false;
+    const d = ca.slice(0, 10);
+    return d >= weekStart && d <= weekEnd && (e.status === "completed" || e.status === "abandoned");
+  });
 
   if (priorities.error?.message?.includes("does not exist") || sessions.error?.message?.includes("does not exist")) {
     return NextResponse.json({ error: "Database tables missing — run migration-learn-ics.sql in Supabase." }, { status: 500 });
@@ -76,17 +87,23 @@ export async function POST(req: NextRequest) {
     daily_priorities: priorities.data ?? [],
     session_logs: sessions.data ?? [],
     kolbs_entries: kolbs.data ?? [],
+    experiments_testing: testingThisWeek,
+    experiments_status_changes_this_week: exStateChanges,
+    skill_level_history_this_week: skillHistWeek.data ?? [],
   };
 
   const userBlock = JSON.stringify(snapshot, null, 2);
 
   const system =
     "You are a learning coach trained in the iCanStudy methodology by Justin Sung. " +
-    "Analyse this student's week and give: (1) 2-3 specific observations about their patterns, " +
-    "(2) the single most important lever to pull next week, (3) one question for them to reflect on. " +
+    "Use exactly these section headings in your response (uppercase, on their own lines):\n" +
+    "PATTERNS:\n(2-3 specific observations about their patterns)\n\n" +
+    "EXPERIMENT CHECK:\nFor each active experiment the student is testing, one sentence on whether this week's data suggests it is working. If no experiments are active, write: (none)\n\n" +
+    "LEVER:\n(the single most important lever to pull next week)\n\n" +
+    "QUESTION:\n(one question for them to reflect on)\n\n" +
     "Be direct, specific, and brief. No fluff. Reference their actual data.";
 
-  const prompt = `Student week data (JSON):\n${userBlock}\n\nRespond in short labeled paragraphs.`;
+  const prompt = `Student week data (JSON):\n${userBlock}\n\nFill every section.`;
 
   const geminiRes = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,

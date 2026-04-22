@@ -107,6 +107,11 @@ export default function DashboardClient() {
     const t = window.setTimeout(() => setOfflineFlash(false), 3200);
     return () => window.clearTimeout(t);
   }, [offlineFlash]);
+
+  const onSyncErrorFlash = useCallback(() => {
+    setOfflineFlash(true);
+  }, []);
+
   const [clock, setClock] = useState(() => new Date());
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [focusRows, setFocusRows] = useState<FocusSessionRow[]>([]);
@@ -784,7 +789,7 @@ export default function DashboardClient() {
                 clock={clock}
                 focusLogs={focusLogs}
                 onFocusLogUpdated={(row) => setFocusLogs((rows) => rows.map((r) => (r.id === row.id ? row : r)))}
-                onSyncError={() => setOfflineFlash(true)}
+                onSyncError={onSyncErrorFlash}
                 accessToken={session.access_token}
                 onAttentionChange={setLearnNeedsAttention}
               />
@@ -943,7 +948,7 @@ export default function DashboardClient() {
           tasks={taskRows}
           onListsChange={setTaskLists}
           onTasksChange={setTaskRows}
-          onSyncError={() => setOfflineFlash(true)}
+          onSyncError={onSyncErrorFlash}
         />
       ) : null}
     </div>

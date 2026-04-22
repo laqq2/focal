@@ -6,16 +6,17 @@ import type { createSupabaseBrowser } from "@/lib/supabase-browser";
 import { todayIsoLocal } from "@/lib/sync";
 import { LearnToday } from "./LearnToday";
 import { LearnSessionLog } from "./LearnSessionLog";
-import { LearnKolbs } from "./LearnKolbs";
+import { KolbsLoopPage } from "./kolbs/KolbsLoopPage";
+import { GoalsPage } from "./goals/GoalsPage";
 import { LearnWeekly } from "./LearnWeekly";
 
 const SUB_KEY = "focal_learn_sub_tab";
-export type LearnSubTab = "today" | "sessions" | "kolbs" | "weekly";
+export type LearnSubTab = "today" | "sessions" | "kolbs" | "goals" | "weekly";
 
 function readSub(): LearnSubTab {
   try {
     const v = localStorage.getItem(SUB_KEY);
-    if (v === "today" || v === "sessions" || v === "kolbs" || v === "weekly") return v;
+    if (v === "today" || v === "sessions" || v === "kolbs" || v === "goals" || v === "weekly") return v;
   } catch {
     /* ignore */
   }
@@ -95,6 +96,7 @@ export function LearnPanel({
         { id: "today" as const, label: "Today" },
         { id: "sessions" as const, label: "Sessions" },
         { id: "kolbs" as const, label: "Kolb's" },
+        { id: "goals" as const, label: "Goals" },
         { id: "weekly" as const, label: "Weekly" },
       ] as const,
     []
@@ -110,9 +112,17 @@ export function LearnPanel({
         ))}
       </nav>
 
-      <div className="focal-learn-body">
+      <div className="focal-learn-body focal-learn-shell">
         {sub === "today" ? (
-          <LearnToday supabase={supabase} userId={userId} displayName={displayName} clock={clock} onSyncError={onSyncError} onUpdated={refreshAttention} />
+          <LearnToday
+            supabase={supabase}
+            userId={userId}
+            displayName={displayName}
+            clock={clock}
+            onSyncError={onSyncError}
+            onUpdated={refreshAttention}
+            onOpenKolbs={() => setSubPersist("kolbs")}
+          />
         ) : null}
         {sub === "sessions" ? (
           <LearnSessionLog
@@ -123,7 +133,8 @@ export function LearnPanel({
             onSyncError={onSyncError}
           />
         ) : null}
-        {sub === "kolbs" ? <LearnKolbs supabase={supabase} userId={userId} onSyncError={onSyncError} /> : null}
+        {sub === "kolbs" ? <KolbsLoopPage supabase={supabase} userId={userId} onSyncError={onSyncError} /> : null}
+        {sub === "goals" ? <GoalsPage supabase={supabase} userId={userId} accessToken={accessToken ?? ""} onSyncError={onSyncError} /> : null}
         {sub === "weekly" ? <LearnWeekly supabase={supabase} accessToken={accessToken} onSyncError={onSyncError} /> : null}
       </div>
     </div>

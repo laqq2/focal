@@ -120,3 +120,4 @@ create policy "tasks are self" on tasks
 --   focus_sessions
 
 -- LEARN / ICS: run migration-learn-ics.sql (daily_priorities, session_logs, kolbs_entries, weekly_summaries, profiles.learn_gemini_api_key).
+-- LEARN v2: run migration-learn-v2.sql (skills, goals, experiments, kolbs extensions, links).
