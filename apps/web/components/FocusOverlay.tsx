@@ -7,12 +7,14 @@ import { SoundsPanel } from "@/components/SoundsPanel";
 
 type Tab = "focus" | "break";
 
-/** Live state for dashboard hero when showing the focus timer. */
+/** Live state for dashboard chrome when the focus timer is active or paused. */
 export type FocusHeroTelemetry = {
   open: boolean;
   tab: Tab;
   remainingSec: number;
   running: boolean;
+  /** Focus round was started (running or paused mid-session; not idle at full length). */
+  focusSessionActive: boolean;
 };
 
 export interface FocusSessionEndPayload {
@@ -99,6 +101,8 @@ export function FocusOverlay({
   const baseRemainingRef = useRef<number>(defaultFocusMinutes * 60);
   const handledZeroRef = useRef(false);
   const focusSessionStartedAtIso = useRef<string | null>(null);
+  /** Avoid wiping inline timer when only visibility (`open`) toggles (e.g. Learn ↔ Focus). */
+  const tabPlannedSyncRef = useRef<{ tab: Tab; planned: number } | null>(null);
 
   const plannedSeconds = tab === "focus" ? focusLen * 60 : breakLen * 60;
 
@@ -135,7 +139,11 @@ export function FocusOverlay({
 
   useEffect(() => {
     if (!open) return;
-    if (!isModal && running) return;
+    if (running) return;
+    const prev = tabPlannedSyncRef.current;
+    const sameKey = prev !== null && prev.tab === tab && prev.planned === plannedSeconds;
+    tabPlannedSyncRef.current = { tab, planned: plannedSeconds };
+    if (!isModal && sameKey) return;
     baseRemainingRef.current = plannedSeconds;
     setRemaining(plannedSeconds);
     setRunning(false);
@@ -279,6 +287,8 @@ export function FocusOverlay({
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }, [remaining]);
 
+  const primaryTimerLabel = running ? "Pause" : remaining > 0 && remaining < plannedSeconds ? "Resume" : "Start";
+
   useEffect(() => {
     if (typeof document === "undefined") return;
     if (baseTitleRef.current === null) baseTitleRef.current = document.title;
@@ -294,16 +304,21 @@ export function FocusOverlay({
   }, [open, running, fmt]);
 
   useEffect(() => {
+    const focusSessionActive = tab === "focus" && focusSessionStartedAtIso.current !== null;
     onHeroTelemetry?.({
       open,
       tab,
       remainingSec: Math.max(0, Math.ceil(remaining)),
       running,
+      focusSessionActive,
     });
   }, [open, tab, remaining, running, onHeroTelemetry]);
 
   const shell = (
-      <div className={`focal-focus-shell focal-panel ${isModal ? "" : "focal-focus-shell--inline"}`}>
+      <div
+        className={`focal-focus-shell ${isModal ? "focal-panel" : "focal-focus-shell--integrated"}`}
+      >
+        {!isModal ? <p className="focal-focus-integrated-eyebrow">Focus session</p> : null}
         <div className="focal-focus-toprow">
           <div className="focal-focus-tabs">
             <button type="button" className={tab === "focus" ? "active" : ""} disabled={running} onClick={() => setTab("focus")}>
@@ -383,7 +398,7 @@ export function FocusOverlay({
           </div>
         )}
 
-        <div className="focal-focus-ring-wrap">
+        <div className={`focal-focus-ring-wrap ${!isModal ? "focal-focus-ring-wrap--integrated" : ""}`}>
           <svg className="focal-focus-svg" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
             <circle className="focal-focus-track" cx={size / 2} cy={size / 2} r={radius} />
             <circle
@@ -396,7 +411,7 @@ export function FocusOverlay({
             />
           </svg>
           <div className="focal-focus-center">
-            <div className="focal-focus-time">{fmt}</div>
+            <div className={`focal-focus-time ${!isModal ? "focal-focus-time--integrated" : ""}`}>{fmt}</div>
             <label className="focal-focus-intent">
               <span>I will focus on…</span>
               <input
@@ -449,14 +464,17 @@ export function FocusOverlay({
           </div>
         ) : null}
 
-        <div className="focal-focus-footer">
+        <div className={`focal-focus-footer ${!isModal ? "focal-focus-footer--integrated" : ""}`}>
           <button
             type="button"
-            className={`focal-focus-play ${running ? "is-pause" : ""}`}
+            className={`focal-focus-play ${running ? "is-pause" : ""} ${!isModal ? "focal-focus-play--integrated" : ""}`}
             onClick={() => void toggleRun()}
-            aria-label={running ? "Pause" : "Play"}
+            aria-label={primaryTimerLabel}
           >
-            {running ? "❚❚" : "▶"}
+            <span className="focal-focus-play-glyph" aria-hidden>
+              {running ? "❚❚" : "▶"}
+            </span>
+            <span className="focal-focus-play-text">{primaryTimerLabel}</span>
           </button>
           <div className="focal-focus-footer-secondary">
             {tab === "focus" ? (

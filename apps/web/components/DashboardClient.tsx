@@ -37,7 +37,7 @@ import {
 import { fetchUpcomingEvents, type CalendarEventItem } from "@/lib/calendar";
 import { authLoginPageUrl, authRedirectToApp } from "@/lib/auth-origin";
 import { signInWithGoogleOAuth } from "@/lib/google-oauth";
-import { FocusOverlay, type FocusSessionEndPayload } from "@/components/FocusOverlay";
+import { FocusOverlay, type FocusHeroTelemetry, type FocusSessionEndPayload } from "@/components/FocusOverlay";
 import { TasksDock } from "@/components/TasksDock";
 import { DashboardSettingsPanel } from "@/components/DashboardSettingsPanel";
 import { LearnPanel } from "@/components/learn/LearnPanel";
@@ -123,7 +123,7 @@ export default function DashboardClient() {
   const [panel, setPanel] = useState<"none" | "calendar" | "settings">("none");
   const [mainTab, setMainTab] = useState<MainTab>(() => (typeof window !== "undefined" ? readMainTab() : "focus"));
   const [learnNeedsAttention, setLearnNeedsAttention] = useState(false);
-  const [focusRunning, setFocusRunning] = useState(false);
+  const [focusHud, setFocusHud] = useState<FocusHeroTelemetry | null>(null);
   const [focusLogs, setFocusLogs] = useState<FocusLogRow[]>([]);
   const [taskLists, setTaskLists] = useState<TaskListRow[]>([]);
   const [taskRows, setTaskRows] = useState<TaskRow[]>([]);
@@ -692,9 +692,14 @@ export default function DashboardClient() {
       <div className="focal-content focal-obs">
         <aside className="focal-obs-sidebar">
           <div className="focal-obs-brand">Focal</div>
-          {focusRunning ? (
+          {focusHud?.running || focusHud?.focusSessionActive ? (
             <div className="focal-obs-live-pill" aria-live="polite">
-              Focusing
+              <span className="focal-obs-live-pill-main">{focusHud.running ? "Focusing" : "Paused"}</span>
+              {mainTab !== "focus" && focusHud ? (
+                <span className="focal-obs-live-pill-time">
+                  {`${String(Math.floor(focusHud.remainingSec / 60)).padStart(2, "0")}:${String(focusHud.remainingSec % 60).padStart(2, "0")}`}
+                </span>
+              ) : null}
             </div>
           ) : null}
           <div className="focal-obs-datetime-block">
@@ -796,8 +801,7 @@ export default function DashboardClient() {
             </div>
           ) : null}
 
-          {mainTab === "focus" ? (
-          <div className="focal-obs-tab-panel focal-obs-tab-focus">
+          <div className="focal-obs-tab-panel focal-obs-tab-focus" hidden={mainTab !== "focus"}>
             <FocusOverlay
               variant="inline"
               open={mainTab === "focus"}
@@ -805,7 +809,7 @@ export default function DashboardClient() {
               defaultFocusMinutes={profile?.focus_duration ?? 25}
               defaultBreakMinutes={profile?.break_duration ?? 5}
               onSessionEnd={(p) => void handleFocusSessionEnd(p)}
-              onRunningChange={setFocusRunning}
+              onHeroTelemetry={setFocusHud}
               onOpenHistory={() => {
                 try {
                   localStorage.setItem("focal_learn_sub_tab", "sessions");
@@ -851,7 +855,6 @@ export default function DashboardClient() {
               </div>
             </details>
           </div>
-          ) : null}
         </main>
       </div>
 

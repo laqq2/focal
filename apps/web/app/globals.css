@@ -2572,6 +2572,9 @@ button {
 
 .focal-obs-live-pill {
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   padding: 0.28rem 0.55rem;
   border-radius: 999px;
   font-size: 0.68rem;
@@ -2581,6 +2584,13 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
+}
+
+.focal-obs-live-pill-time {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  opacity: 0.92;
+  font-weight: 600;
 }
 
 .focal-obs-date-block {
@@ -3288,11 +3298,94 @@ button {
   width: 100%;
 }
 
-.focal-focus-shell--inline {
-  max-height: min(calc(100vh - 10rem), 720px);
-  overflow-y: auto;
+/* Dashboard focus tab: timer flows with the page instead of a floating card */
+.focal-focus-shell.focal-focus-shell--integrated {
+  position: relative;
+  z-index: auto;
   width: 100%;
-  margin: 0 auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0.15rem 0 0.25rem;
+  overflow: visible;
+  text-align: center;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: none;
+}
+
+.focal-focus-integrated-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.focal-focus-shell--integrated .focal-focus-toprow {
+  margin-bottom: 0.45rem;
+}
+
+.focal-focus-ring-wrap--integrated {
+  margin-top: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.focal-focus-time--integrated {
+  font-family: var(--focal-display);
+  font-size: clamp(2.85rem, 11vw, 4.5rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  text-shadow: 0 4px 36px rgba(0, 0, 0, 0.4);
+}
+
+.focal-focus-footer--integrated {
+  margin-top: 0.65rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.focal-focus-footer--integrated .focal-focus-footer-secondary {
+  margin: 0;
+  justify-content: center;
+}
+
+.focal-focus-play-text {
+  display: none;
+}
+
+.focal-focus-play--integrated {
+  width: auto;
+  min-height: 48px;
+  height: auto;
+  padding: 0.45rem 1.15rem;
+  border-radius: 999px;
+  gap: 0.5rem;
+  flex-direction: row;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.focal-focus-play--integrated .focal-focus-play-text {
+  display: inline;
+}
+
+.focal-focus-play--integrated .focal-focus-play-glyph {
+  font-size: 0.75rem;
+  opacity: 0.95;
+}
+
+.focal-focus-play--integrated.is-pause .focal-focus-play-glyph {
+  font-size: 0.62rem;
+  letter-spacing: -0.06em;
 }
 
 @media (max-width: 900px) {
