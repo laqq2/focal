@@ -226,7 +226,7 @@ export function AccountSection({
           <span className="focal-settings-row-label">Email</span>
           <span className="focal-settings-row-value">{email || "—"}</span>
         </div>
-        <button className="focal-btn" type="button" onClick={() => void supabase.auth.signOut().then(() => router.replace("/app"))}>
+        <button className="focal-btn" type="button" onClick={() => void supabase.auth.signOut().then(() => router.replace("/"))}>
           Sign out
         </button>
       </div>

@@ -34,7 +34,7 @@ export default function SettingsPageClient() {
       const { data } = await supabase.auth.getSession();
       if (cancelled) return;
       if (!data.session) {
-        router.replace("/app");
+        router.replace("/");
         return;
       }
       setSession(data.session);
@@ -70,7 +70,7 @@ export default function SettingsPageClient() {
       }
     })();
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      if (!s) router.replace("/app");
+      if (!s) router.replace("/");
       setSession(s);
     });
     return () => {
@@ -91,7 +91,7 @@ export default function SettingsPageClient() {
     localStorage.clear();
     sessionStorage.clear();
     await supabase.auth.signOut();
-    router.replace("/app");
+    router.replace("/");
   };
 
   if (booting || !session?.user) {

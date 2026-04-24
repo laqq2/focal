@@ -6,7 +6,7 @@ export default function LegalShell({ children }: { children: React.ReactNode }) 
       <div className="focal-bg solid-theme" />
       <div className="focal-content focal-legal-wrap">
         <nav className="focal-legal-nav">
-          <Link href="/login" className="focal-btn" style={{ display: "inline-flex" }}>
+          <Link href="/" className="focal-btn" style={{ display: "inline-flex" }}>
             ← Focal
           </Link>
           <span className="focal-legal-nav-sep" aria-hidden>
