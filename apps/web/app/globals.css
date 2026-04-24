@@ -5566,3 +5566,100 @@ button {
   color: rgba(255, 255, 255, 0.5);
   line-height: 1.35;
 }
+
+/* Legal pages (privacy, terms) */
+.focal-legal-wrap {
+  align-items: stretch;
+  max-width: 40rem;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.focal-legal-nav {
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
+.focal-legal-nav-sep,
+.focal-legal-nav-dot {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.85rem;
+  user-select: none;
+}
+
+.focal-legal-nav-link {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.focal-legal-nav-link:hover {
+  color: var(--text);
+}
+
+.focal-legal-doc {
+  color: var(--text-muted);
+  line-height: 1.65;
+  font-size: 0.95rem;
+}
+
+.focal-legal-doc h1 {
+  font-family: var(--focal-display);
+  font-size: 1.85rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 0.35rem;
+  letter-spacing: -0.02em;
+}
+
+.focal-legal-doc .focal-legal-updated {
+  margin: 0 0 1.75rem;
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.focal-legal-doc h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 1.75rem 0 0.65rem;
+}
+
+.focal-legal-doc h2:first-of-type {
+  margin-top: 0;
+}
+
+.focal-legal-doc p {
+  margin: 0 0 0.85rem;
+}
+
+.focal-legal-doc ul {
+  margin: 0 0 0.85rem;
+  padding-left: 1.25rem;
+}
+
+.focal-legal-doc li {
+  margin: 0.35rem 0;
+}
+
+.focal-legal-doc a {
+  color: var(--accent-gold-soft);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.focal-legal-doc a:hover {
+  color: var(--accent-gold);
+}
+
+.focal-legal-doc code {
+  font-size: 0.88em;
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
