@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: "Focal",
   description: "A calm new tab for deep focus.",
   manifest: "/manifest.webmanifest",
+  verification: {
+    google: "58SrQAqcLOZFqL_xYIuqCq42dEzWkRHFOJxiST1wxKg",
+  },
 };
 
 export const viewport: Viewport = {
