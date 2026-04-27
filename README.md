@@ -1,97 +1,21 @@
 # Focal
 
-Focal is a calm “new tab” dashboard with focus timers, procedural soundscapes, optional site blocking (via the browser extension), Google Calendar (via Supabase Google OAuth), and gentle Memento Mori reminders. The product is split into:
+> Chrome extension productivity tool built around Kolb's Reflection Cycle and iCanStudy principles.
 
-- **`apps/web`**: Next.js app deployed to Vercel (PWA-friendly). Routes: `/` → `/app`, `/app` dashboard, `/login` standalone auth.
-- **`apps/extension`**: Thin Chrome extension shell that iframes the web app and mirrors Supabase session + blocker state into `chrome.storage.local`, while the service worker applies `declarativeNetRequest` rules.
-- **`packages/shared`**: Shared types, quotes, memento math, and blocker presets.
+Built to bridge the gap between good intentions and consistent execution — bakes weekly reflection and evidence-based study methodology directly into a browser extension.
 
-## Prerequisites
+## What it does
 
-- Node.js 18.18+ and npm
-- A Supabase project
-- (Optional) Google Cloud OAuth client for legacy manifest fields / Safari packaging notes below
+- **Focus timer** — Pomodoro-style sessions with distraction logging
+- **Task management** — integrated to-do list with prioritisation
+- **Google Calendar sync** — see your schedule without leaving the tab
+- **Weekly reflection** — structured review built on Kolb's four-stage cycle
+- **Goal setting** — weekly and daily goal tracking with iCanStudy principles
 
-## Supabase setup
+## Stack
 
-1. Create a project and copy **Project URL** + **anon key** into `apps/web/.env.local`:
+React · Vite · Chrome Extension APIs · Google Calendar API · Vercel
 
-```bash
-NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
-NEXT_PUBLIC_APP_ORIGIN=http://localhost:3000
-```
+## Live
 
-2. Run `supabase/schema.sql` in the Supabase SQL editor. If you already created tables earlier, run only the new `focus_logs` block from that file (or `supabase/migration-focus_logs.sql`) so session history can sync.
-
-3. Enable **Auth → Providers → Google** and add the Calendar readonly scope:
-
-   - Additional scope: `https://www.googleapis.com/auth/calendar.readonly`
-
-4. Under **Database → Replication**, enable **Realtime** for `daily_goals` and `focus_sessions`.
-
-5. Set **Auth → URL Configuration** redirect URLs to include your Vercel domain and `http://localhost:3000/app`.
-
-## Local development
-
-```bash
-cd focal
-npm install
-npm run dev
-```
-
-Visit `http://localhost:3000/app`.
-
-Add your background image as `apps/web/public/background.jpg` (see `public/BACKGROUND.txt`).
-
-## Deploy the web app (Vercel)
-
-1. Connect the `focal` repo and set the **Root Directory** to `apps/web` (or deploy the monorepo with the same workspace install command: `npm install` at repo root, **Build** `npm run build --workspace=@focal/web`, **Output** `.next` from `apps/web`).
-
-2. Configure the same `NEXT_PUBLIC_*` variables in Vercel. Set **`NEXT_PUBLIC_APP_ORIGIN`** to your **production https origin** (no trailing slash), for example `https://focal.example.com`. The Chrome extension and Google OAuth use this value for `redirectTo`; if it is missing on the deployed build, sign-in from the extension can fail with **403**. In **Supabase → Authentication → URL Configuration**, add **`https://YOUR-DOMAIN/app`** (and `http://localhost:3000/app` for local dev) to **Redirect URLs**.
-
-## Chrome extension
-
-1. Edit `apps/extension/config.json` and set **`appUrl`** to the same deployed URL as **`NEXT_PUBLIC_APP_ORIGIN` + `/app`** (for example `https://focal.example.com/app`). Local dev can use `http://localhost:3000/app`. The new-tab shell automatically appends **`focal_embed=1`** to the iframe URL so the web app can tell extension context from other iframes. **Sign-in from the new tab** uses **“Sign in to Focal”** → the extension parent calls **`chrome.tabs.create`** to open your hosted **`/login`**. After you sign in on that tab, the iframe picks up the session via **storage polling / focus**, or use **“I’ve signed in — refresh”** if it does not connect within ~10 seconds.
-
-2. Open `chrome://extensions`, enable **Developer mode**, **Load unpacked**, choose `focal/apps/extension`.
-
-3. Replace `oauth2.client_id` in `manifest.json` if you still use Chrome identity APIs (the web app itself uses Supabase for Google OAuth).
-
-4. For **site blocking**, open the dashboard inside the extension new tab, toggle **Blocker Active**, and add domains. The extension redirects blocked top-level navigations to `blocked.html`, which reads the blocked hostname from `document.referrer`.
-
-## Safari Web Extension (Xcode)
-
-Apple ships a converter that wraps a Chrome MV3 extension:
-
-```bash
-xcrun safari-web-extension-converter /path/to/focal/apps/extension \
-  --project-location /path/to/output \
-  --app-name Focal
-```
-
-Open the generated Xcode project, set your team signing, build, and run the macOS wrapper app to sideload the extension for personal use. Point `config.json` at your production `/app` URL so the embedded web experience matches Chrome.
-
-**Note:** Safari’s extension runtime differs slightly from Chrome; test blocking + storage flows after conversion. For cross-browser APIs in future iterations, consider vendoring `webextension-polyfill` into the extension bundle.
-
-## Architecture notes
-
-- **Auth & data** live in Supabase (`profiles`, `daily_goals`, `focus_sessions`, `focus_logs`, `blocked_sites`, `memento_entries`). Each completed or “ended early” focus session appends a `focus_logs` row (intent, distractions JSON, planned vs actual minutes) while `focus_sessions` continues to hold **per-day** total minutes.
-- **UI polish** for glass panels and the focus overlay drew loose inspiration from [Magic MCP](https://21st.dev) “glass / timer” search results (`bg-black/20`, `backdrop-blur-xl`-style treatment translated to plain CSS).
-- **Offline mode** caches the last bundle in `localStorage` and queues failed writes in `focal_pending_writes` (see `apps/web/lib/sync.ts`).
-- **Extension bridge** messages (`FOCAL_*` in `packages/shared`) sync the Supabase session into `chrome.storage.local` so the iframe can rehydrate on cold start.
-- **Sounds** are generated with the Web Audio API (`apps/web/lib/sounds-engine.ts`); binaural presets route left/right carriers into a stereo graph (headphones recommended).
-
-## Repository layout
-
-```
-focal/
-├── apps/
-│   ├── web/                # Next.js dashboard + PWA manifest
-│   └── extension/          # Chrome/Safari shell + blocker service worker
-├── packages/
-│   └── shared/             # Shared TS modules
-├── supabase/
-│   └── schema.sql
-└── README.md
-```
+[focal-web-alpha.vercel.app/app](https://focal-web-alpha.vercel.app/app)
