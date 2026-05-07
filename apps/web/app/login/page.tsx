@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowser } from "@/lib/supabase-browser";
 import { authRedirectToApp } from "@/lib/auth-origin";
+import FocalLogo from "@/components/FocalLogo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -52,6 +53,9 @@ export default function LoginPage() {
       <div className="focal-bg solid-theme" />
       <div className="focal-content" style={{ justifyContent: "center" }}>
         <div className="focal-panel focal-login-card">
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "0.85rem" }}>
+            <FocalLogo size={56} alt="" priority />
+          </div>
           <h1 style={{ margin: "0 0 0.35rem", fontSize: "1.6rem" }}>Welcome to Focal</h1>
           <p style={{ margin: "0 0 1rem", color: "rgba(255,255,255,0.7)" }}>
             Sign in to sync your focus, goals, and lists across devices.

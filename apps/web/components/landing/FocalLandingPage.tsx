@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { trackEvent } from "@/lib/analytics";
+import FocalLogo from "@/components/FocalLogo";
 
 const FAQ_ITEMS: { q: string; a: string }[] = [
   {
@@ -47,6 +49,10 @@ export default function FocalLandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   useEffect(() => {
+    void trackEvent("landing_viewed", { source_surface: "landing" });
+  }, []);
+
+  useEffect(() => {
     const nav = navRef.current;
     if (!nav) return;
     const onScroll = () => nav.classList.toggle("scrolled", window.scrollY > 20);
@@ -83,7 +89,8 @@ export default function FocalLandingPage() {
       <nav ref={navRef} className="nav" id="main-nav" role="navigation" aria-label="Main">
         <div className="nav-inner">
           <Link href="/" className="nav-brand" aria-label="Focal home">
-            Focal<span>.</span>
+            <FocalLogo size={36} alt="" priority />
+            <span className="nav-brand-text">Focal</span>
           </Link>
           <div className="nav-links" role="list">
             <Link href="#how" role="listitem">
@@ -182,7 +189,10 @@ export default function FocalLandingPage() {
             </div>
             <div className="preview-content">
               <div className="preview-sidebar">
-                <div className="preview-sidebar-brand">Focal.</div>
+                <div className="preview-sidebar-brand">
+                  <FocalLogo size={22} alt="" />
+                  <span>Focal</span>
+                </div>
                 <div>
                   <div className="preview-sidebar-label" style={{ marginBottom: "0.65rem" }}>
                     Next up
@@ -573,7 +583,10 @@ export default function FocalLandingPage() {
 
       <footer className="footer" role="contentinfo" data-screen-label="08 Footer">
         <div className="footer-inner">
-          <span className="footer-brand">Focal.</span>
+          <span className="footer-brand">
+            <FocalLogo size={26} alt="" />
+            <span>Focal</span>
+          </span>
           <div className="footer-links">
             <Link href="/privacy">Privacy</Link>
             <Link href="/terms">Terms</Link>

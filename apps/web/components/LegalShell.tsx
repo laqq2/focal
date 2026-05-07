@@ -1,4 +1,5 @@
 import Link from "next/link";
+import FocalLogo from "@/components/FocalLogo";
 
 export default function LegalShell({ children }: { children: React.ReactNode }) {
   return (
@@ -6,8 +7,10 @@ export default function LegalShell({ children }: { children: React.ReactNode }) 
       <div className="focal-bg solid-theme" />
       <div className="focal-content focal-legal-wrap">
         <nav className="focal-legal-nav">
-          <Link href="/" className="focal-btn" style={{ display: "inline-flex" }}>
-            ← Focal
+          <Link href="/" className="focal-btn focal-brand-lockup">
+            <span aria-hidden>←</span>
+            <FocalLogo size={22} alt="" />
+            <span>Focal</span>
           </Link>
           <span className="focal-legal-nav-sep" aria-hidden>
             |
