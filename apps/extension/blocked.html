@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Blocked — Focal</title>
+    <link rel="icon" type="image/png" href="icons/icon128.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -54,13 +55,27 @@
         font-size: 1rem;
         cursor: pointer;
       }
-      button:hover {
-        filter: brightness(1.1);
+      .brand {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        margin-bottom: 0.75rem;
+      }
+      .brand img {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        object-fit: cover;
       }
     </style>
   </head>
   <body>
     <div class="card">
+      <div class="brand">
+        <img src="icons/icon128.png" width="36" height="36" alt="" />
+        <span style="font-family: 'DM Serif Display', serif; font-size: 1.25rem">Focal</span>
+      </div>
       <h1 id="title">🚫 This site is blocked</h1>
       <p id="host"></p>
       <p>Take a breath. What you were about to do — is it aligned with the day you want to have?</p>
