@@ -10,6 +10,7 @@ import { cachedBundle, flushPending, loadBundle } from "@/lib/sync";
 import { MementoEditor } from "@/components/settings/MementoEditor";
 import {
   AccountSection,
+  BillingSection,
   FocusSection,
   GeneralSection,
   LearnSection,
@@ -23,6 +24,14 @@ export default function SettingsPageClient() {
   const [booting, setBooting] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [section, setSection] = useState<SettingsNavSection>("general");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = new URLSearchParams(window.location.search).get("section");
+    if (!raw) return;
+    const valid = SETTINGS_NAV.some((s) => s.id === raw);
+    if (valid) setSection(raw as SettingsNavSection);
+  }, []);
+
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [memento, setMemento] = useState<MementoEntryRow[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
@@ -146,6 +155,14 @@ export default function SettingsPageClient() {
             onError={(m) => {
               setErr(m);
               setMsg(null);
+            }}
+          />
+        ) : null}
+        {section === "billing" ? (
+          <BillingSection
+            onMessage={(m) => {
+              setMsg(m);
+              setErr(null);
             }}
           />
         ) : null}

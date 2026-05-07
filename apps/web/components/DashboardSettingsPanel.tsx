@@ -7,6 +7,7 @@ import type { createSupabaseBrowser } from "@/lib/supabase-browser";
 import { MementoEditor } from "@/components/settings/MementoEditor";
 import {
   AccountSection,
+  BillingSection,
   FocusSection,
   GeneralSection,
   LearnSection,
@@ -74,6 +75,14 @@ export function DashboardSettingsPanel({
               onError={(m) => {
                 setErr(m);
                 setMsg(null);
+              }}
+            />
+          ) : null}
+          {section === "billing" ? (
+            <BillingSection
+              onMessage={(m) => {
+                setMsg(m);
+                setErr(null);
               }}
             />
           ) : null}

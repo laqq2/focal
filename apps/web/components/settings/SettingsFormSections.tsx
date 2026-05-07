@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ClockFormat, ProfileRow, QuoteStyle, ThemeMode } from "@focal/shared";
 import type { createSupabaseBrowser } from "@/lib/supabase-browser";
 import { authRedirectToApp } from "@/lib/auth-origin";
+import { readPlanState, writePlanState, type PlanState } from "@/lib/growth";
 
 export function SettingsAppRow({
   title,
@@ -26,17 +27,75 @@ export function SettingsAppRow({
   );
 }
 
-export type SettingsNavSection = "general" | "account" | "focus" | "learn" | "memento" | "calendar" | "help";
+export type SettingsNavSection = "general" | "account" | "billing" | "focus" | "learn" | "memento" | "calendar" | "help";
 
 export const SETTINGS_NAV: { id: SettingsNavSection; label: string }[] = [
   { id: "general", label: "General" },
   { id: "account", label: "Account" },
+  { id: "billing", label: "Billing" },
   { id: "focus", label: "Focus" },
   { id: "learn", label: "Learn" },
   { id: "memento", label: "Memento mori" },
   { id: "calendar", label: "Calendar" },
   { id: "help", label: "Help" },
 ];
+
+export function BillingSection({ onMessage }: { onMessage?: (s: string | null) => void }) {
+  const [plan, setPlan] = useState<PlanState>("free");
+
+  useEffect(() => {
+    setPlan(readPlanState());
+    const onChange = (evt: Event) => {
+      const custom = evt as CustomEvent<PlanState>;
+      if (custom.detail) setPlan(custom.detail);
+      else setPlan(readPlanState());
+    };
+    window.addEventListener("focal_plan_changed", onChange as EventListener);
+    return () => window.removeEventListener("focal_plan_changed", onChange as EventListener);
+  }, []);
+
+  const startTrial = () => {
+    writePlanState("trial");
+    onMessage?.("Trial mode enabled locally. Connect Stripe checkout when ready.");
+  };
+
+  const checkoutUrl = process.env.NEXT_PUBLIC_STRIPE_CHECKOUT_URL;
+  const portalUrl = process.env.NEXT_PUBLIC_STRIPE_PORTAL_URL;
+
+  return (
+    <section className="focal-settings-section">
+      <h1>Billing</h1>
+      <p className="focal-settings-sub">Monetization scaffold is live. Connect Stripe URLs to complete checkout and self-serve billing.</p>
+
+      <div className="focal-settings-card">
+        <div className="focal-settings-row">
+          <span className="focal-settings-row-label">Current plan</span>
+          <span className="focal-settings-row-value" style={{ textTransform: "capitalize" }}>
+            {plan}
+          </span>
+        </div>
+        <p style={{ marginTop: 0, color: "rgba(255,255,255,0.7)", fontSize: "0.85rem", lineHeight: 1.45 }}>
+          Pro unlocks advanced insights, richer blocker controls, and premium personalization.
+        </p>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <button className="focal-btn primary" type="button" onClick={startTrial}>
+            Start 14-day trial
+          </button>
+          {checkoutUrl ? (
+            <a className="focal-btn" href={checkoutUrl}>
+              Upgrade with Stripe
+            </a>
+          ) : null}
+          {portalUrl ? (
+            <a className="focal-btn" href={portalUrl}>
+              Manage billing
+            </a>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export function GeneralSection({
   profile,
