@@ -19,3 +19,12 @@ React · Vite · Chrome Extension APIs · Google Calendar API · Vercel
 ## Live
 
 [focal-web-alpha.vercel.app/app](https://focal-web-alpha.vercel.app/app)
+
+## Business and launch docs
+
+- `docs/PRD.md` - monetization-ready product requirements document
+- `docs/MONETIZATION.md` - pricing, packaging, paywall strategy
+- `docs/GTM-PLAN.md` - 90-day go-to-market plan
+- `docs/PRODUCT-HUNT-LAUNCH.md` - Product Hunt launch playbook
+- `docs/ANALYTICS-SPEC.md` - event taxonomy and KPI definitions
+- `docs/EXECUTION-CHECKLIST.md` - operator checklist for execution
