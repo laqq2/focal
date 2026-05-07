@@ -5,13 +5,17 @@ export const metadata: Metadata = {
   title: "Focal",
   description: "A calm new tab for deep focus.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/branding/focal-logo.png",
+    apple: "/branding/focal-logo.png",
+  },
   verification: {
     google: "58SrQAqcLOZFqL_xYIuqCq42dEzWkRHFOJxiST1wxKg",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
+  themeColor: "#121212",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

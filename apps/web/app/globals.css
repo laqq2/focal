@@ -18,6 +18,18 @@
   box-sizing: border-box;
 }
 
+.focal-logo-asset {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.focal-brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 html,
 body {
   margin: 0;
@@ -2534,6 +2546,9 @@ button {
 }
 
 .focal-obs-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   font-family: var(--focal-display);
   font-size: clamp(1.45rem, 2.1vw, 1.85rem);
   font-weight: 600;
@@ -2947,6 +2962,84 @@ button {
   max-width: 520px;
   align-items: stretch;
   gap: 1rem;
+}
+
+.focal-growth-card {
+  width: 100%;
+  max-width: 960px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(14, 14, 18, 0.52);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 0.85rem 0.95rem;
+  margin: 0.35rem 0 0.85rem;
+}
+
+.focal-growth-card-paywall {
+  border-color: rgba(212, 175, 55, 0.28);
+  background: rgba(22, 17, 9, 0.48);
+}
+
+.focal-growth-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.focal-growth-card-head h2 {
+  margin: 0;
+  font-size: 0.86rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.focal-growth-card-head span {
+  font-size: 0.76rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.focal-growth-checks {
+  margin: 0.6rem 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+
+.focal-growth-checks li {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.focal-growth-checks li::before {
+  content: "○ ";
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.focal-growth-checks li.done::before {
+  content: "✓ ";
+  color: #6ee7b7;
+}
+
+.focal-growth-checks li.done {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.focal-growth-copy {
+  margin: 0.55rem 0 0.75rem;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.74);
+  line-height: 1.45;
+}
+
+.focal-growth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
 }
 
 .focal-obs-focus-blocker {
