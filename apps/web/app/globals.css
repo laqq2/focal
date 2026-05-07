@@ -5538,6 +5538,46 @@ button {
   margin-top: 0.45rem;
 }
 
+.focal-goals-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+
+.focal-goals-card-actions .focal-goals-monthly {
+  margin-top: 0;
+}
+
+.focal-plan30-editor {
+  padding: 1rem 1.1rem 1.25rem;
+}
+
+.focal-plan30-goal-row {
+  margin-bottom: 0.5rem;
+}
+
+.focal-goal-fw-body {
+  max-height: min(85vh, 720px);
+  overflow-y: auto;
+}
+
+.focal-goal-fw-section {
+  margin-top: 0.75rem;
+}
+
+.focal-goal-fw-title {
+  display: block;
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.82);
+  margin-bottom: 0.2rem;
+}
+
+.focal-goal-fw-textarea {
+  min-height: 4.5rem;
+}
+
 .focal-goals-sheet.focal-sheet {
   border-left: 3px solid rgba(220, 150, 140, 0.45);
 }

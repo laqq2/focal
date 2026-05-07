@@ -35,7 +35,6 @@ export function LearnSessionLog({
   const [sessionGoal, setSessionGoal] = useState("");
   const [goalHit, setGoalHit] = useState<(typeof GOAL_HIT)[number] | "">("");
   const [distractions, setDistractions] = useState("");
-  const [sessionType, setSessionType] = useState<"theory" | "practice">("practice");
   const [timerRun, setTimerRun] = useState(false);
   const [timerSec, setTimerSec] = useState(0);
   const [sessionGoalId, setSessionGoalId] = useState<string>("");
@@ -123,19 +122,7 @@ export function LearnSessionLog({
     return m;
   }, [weekSessions, weekStart]);
 
-  const { theoryM, practiceM, ratioLabel, ratioWarn } = useMemo(() => {
-    let theoryM = 0;
-    let practiceM = 0;
-    for (const s of weekSessions) {
-      if (s.session_type === "theory") theoryM += s.duration_mins;
-      else practiceM += s.duration_mins;
-    }
-    const ratio = theoryM > 0 ? practiceM / theoryM : practiceM > 0 ? Infinity : 0;
-    const ratioLabel =
-      theoryM === 0 && practiceM === 0 ? "—" : theoryM === 0 ? "∞ : 1" : `${(practiceM / theoryM).toFixed(1)} : 1`;
-    const ratioWarn = theoryM > 0 && practiceM / theoryM < 5;
-    return { theoryM, practiceM, ratioLabel, ratioWarn };
-  }, [weekSessions]);
+  const weekTotalMins = useMemo(() => weekSessions.reduce((a, s) => a + s.duration_mins, 0), [weekSessions]);
 
   const submitSession = async () => {
     if (!subject.trim() || !goalHit) return;
@@ -149,7 +136,7 @@ export function LearnSessionLog({
       session_goal: sessionGoal.trim() || null,
       goal_hit: goalHit,
       distractions: distractions.trim() || null,
-      session_type: sessionType,
+      session_type: "work",
       goal_id: sessionGoalId || null,
       experiment_id: sessionExperimentId || null,
     };
@@ -191,7 +178,7 @@ export function LearnSessionLog({
       <header className="focal-learn-hero">
         <p className="focal-learn-hero__kicker">Evidence of work</p>
         <h2 className="focal-learn-hero__title">Session log</h2>
-        <p className="focal-learn-hero__sub">Document the architectural evolution of thought — theory, practice, and honest close-out.</p>
+        <p className="focal-learn-hero__sub">Log focused work toward your goals — honest close-out and measurable session outcomes.</p>
       </header>
 
       <section className="focal-learn-section focal-learn-section--anchor">
@@ -321,18 +308,6 @@ export function LearnSessionLog({
             <input className="focal-input focal-learn-input" value={distractions} onChange={(e) => setDistractions(e.target.value)} />
           </label>
 
-          <div className="focal-learn-theory-row">
-            <span className="focal-learn-muted">Type</span>
-            <div className="focal-learn-toggle">
-              <button type="button" className={sessionType === "theory" ? "active" : ""} onClick={() => setSessionType("theory")}>
-                Theory
-              </button>
-              <button type="button" className={sessionType === "practice" ? "active" : ""} onClick={() => setSessionType("practice")}>
-                Practice
-              </button>
-            </div>
-          </div>
-
           <button
             type="button"
             className="focal-btn primary focal-learn-commit-session"
@@ -354,7 +329,7 @@ export function LearnSessionLog({
           <h3 className="focal-learn-section-title">Today&apos;s volume</h3>
         </div>
         <p className="focal-learn-stat-line">
-          <strong>{(todayMins / 60).toFixed(1)}</strong> hours focused today (study sessions)
+          <strong>{(todayMins / 60).toFixed(1)}</strong> hours logged today (work sessions)
         </p>
         {loading ? (
           <p className="focal-learn-muted">Loading…</p>
@@ -371,9 +346,7 @@ export function LearnSessionLog({
                     ) : null}
                     {s.subject}
                   </span>
-                  <span className="focal-learn-muted">
-                    {s.duration_mins}m · Q{s.focus_quality} · {s.session_type}
-                  </span>
+                  <span className="focal-learn-muted">{s.duration_mins}m · Q{s.focus_quality}</span>
                 </div>
                 {s.session_goal ? <p className="focal-learn-session-goal">{s.session_goal}</p> : null}
               </li>
@@ -384,15 +357,11 @@ export function LearnSessionLog({
 
       <section className="focal-learn-section focal-learn-section-panel focal-learn-section-panel--week">
         <div className="focal-learn-section-head">
-          <span className="focal-learn-section-eyebrow">Equilibrium</span>
+          <span className="focal-learn-section-eyebrow">Volume</span>
           <h3 className="focal-learn-section-title">This week</h3>
         </div>
         <p className="focal-learn-muted">
-          Practice : theory (mins) — {practiceM} : {theoryM}. Target at least <strong>5 : 1</strong> practice to theory.
-        </p>
-        <p className={`focal-learn-ratio ${ratioWarn ? "warn" : ""}`}>
-          Current ratio {ratioLabel}
-          {ratioWarn ? " — add more deliberate practice before more theory." : ""}
+          <strong>{(weekTotalMins / 60).toFixed(1)}</strong> hours logged Mon–Sun. Consistency beats intensity spikes.
         </p>
         <div className="focal-learn-bars" role="img" aria-label="Hours per day this week">
           {Array.from({ length: 7 }, (_, i) => {

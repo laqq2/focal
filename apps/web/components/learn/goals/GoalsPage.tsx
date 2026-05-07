@@ -13,6 +13,8 @@ import type {
 import type { createSupabaseBrowser } from "@/lib/supabase-browser";
 import { addDaysIso, weekStartMondayLocal } from "@/lib/learn-dates";
 import { enqueuePending } from "@/lib/sync";
+import { GoalFrameworkSheet } from "./GoalFrameworkSheet";
+import { ThirtyDayPlanTab, type PlanWithPerformance } from "./ThirtyDayPlanTab";
 
 const PRESET_COLORS = [
   { label: "Rose", v: "#be7c7a" },
@@ -23,7 +25,13 @@ const PRESET_COLORS = [
   { label: "Green", v: "#6b9b7a" },
 ];
 
-type Tab = "goals" | "skills";
+type Tab = "goals" | "plan30" | "skills";
+
+function goalFrameworkFilled(g: GoalRow): boolean {
+  const f = g.framework;
+  if (!f || typeof f !== "object") return false;
+  return Object.values(f as Record<string, unknown>).some((v) => typeof v === "string" && v.trim().length > 0);
+}
 
 export function GoalsPage({
   supabase,
@@ -46,10 +54,12 @@ export function GoalsPage({
   const [experimentsBySkill, setExperimentsBySkill] = useState<Record<string, ExperimentRow[]>>({});
   const [kolbsBySkill, setKolbsBySkill] = useState<Record<string, KolbsEntryRow[]>>({});
   const [historyBySkill, setHistoryBySkill] = useState<Record<string, SkillLevelHistoryRow[]>>({});
+  const [plans, setPlans] = useState<PlanWithPerformance[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [sheet, setSheet] = useState<"none" | "newGoal" | "monthly">("none");
+  const [sheet, setSheet] = useState<"none" | "newGoal" | "monthly" | "framework">("none");
   const [monthlyGoal, setMonthlyGoal] = useState<GoalRow | null>(null);
+  const [frameworkGoal, setFrameworkGoal] = useState<GoalRow | null>(null);
 
   const onSyncErrorRef = useRef(onSyncError);
   onSyncErrorRef.current = onSyncError;
@@ -73,6 +83,17 @@ export function GoalsPage({
           .gte("date", weekStart)
           .lte("date", weekEnd),
       ]);
+      try {
+        const { data: tp, error: tpErr } = await supabase
+          .from("thirty_day_plans")
+          .select("*, plan_performance_goals(*)")
+          .eq("user_id", userId)
+          .order("period_start", { ascending: false });
+        if (tpErr) throw tpErr;
+        setPlans((tp as PlanWithPerformance[]) ?? []);
+      } catch {
+        setPlans([]);
+      }
       setAreas((a as GoalAreaRow[]) ?? []);
       const goalRows = (g as GoalRow[]) ?? [];
       const areaMap = Object.fromEntries((a as GoalAreaRow[])?.map((x) => [x.id, x]) ?? []);
@@ -174,6 +195,9 @@ export function GoalsPage({
         <button type="button" className={tab === "goals" ? "active" : ""} onClick={() => setTab("goals")}>
           Goals
         </button>
+        <button type="button" className={tab === "plan30" ? "active" : ""} onClick={() => setTab("plan30")}>
+          30-day plan
+        </button>
         <button type="button" className={tab === "skills" ? "active" : ""} onClick={() => setTab("skills")}>
           Skills
         </button>
@@ -190,7 +214,20 @@ export function GoalsPage({
             setMonthlyGoal(g);
             setSheet("monthly");
           }}
+          onOpenFramework={(g) => {
+            setFrameworkGoal(g);
+            setSheet("framework");
+          }}
           onNewGoal={() => setSheet("newGoal")}
+        />
+      ) : tab === "plan30" ? (
+        <ThirtyDayPlanTab
+          supabase={supabase}
+          userId={userId}
+          goals={goals}
+          plans={plans}
+          onReload={() => void load({ silent: true })}
+          onSyncError={onSyncError}
         />
       ) : (
         <SkillsTab
@@ -238,6 +275,23 @@ export function GoalsPage({
           onSyncError={onSyncError}
         />
       ) : null}
+      {sheet === "framework" && frameworkGoal ? (
+        <GoalFrameworkSheet
+          goal={frameworkGoal}
+          supabase={supabase}
+          userId={userId}
+          onClose={() => {
+            setSheet("none");
+            setFrameworkGoal(null);
+          }}
+          onSaved={() => {
+            setSheet("none");
+            setFrameworkGoal(null);
+            void load({ silent: true });
+          }}
+          onSyncError={onSyncError}
+        />
+      ) : null}
     </div>
   );
 }
@@ -249,6 +303,7 @@ function GoalsTab({
   sessionCounts,
   reviews,
   onOpenMonthly,
+  onOpenFramework,
   onNewGoal,
 }: {
   areas: GoalAreaRow[];
@@ -257,6 +312,7 @@ function GoalsTab({
   sessionCounts: Record<string, number>;
   reviews: Record<string, GoalReviewRow>;
   onOpenMonthly: (g: GoalRow) => void;
+  onOpenFramework: (g: GoalRow) => void;
   onNewGoal: () => void;
 }) {
   const hasGoals = goals.filter((g) => g.status === "active").length > 0;
@@ -264,9 +320,12 @@ function GoalsTab({
     <>
       <header className="focal-goals-hero">
         <div className="focal-goals-hero__text">
-          <p className="focal-kolbs-form-kicker">Strategic learning</p>
+          <p className="focal-kolbs-form-kicker">Strategy</p>
           <h2 className="focal-goals-hero__title">Goals</h2>
-          <p className="focal-goals-hero__sub">Name the outcome. Link the skills. Review with honesty.</p>
+          <p className="focal-goals-hero__sub">
+            Anchor the long game (Notion framework), link skills, log execution, review monthly. Pair with a 30-day plan for
+            near-term performance targets.
+          </p>
         </div>
         <button type="button" className="focal-btn primary focal-goals-hero__cta" onClick={onNewGoal}>
           New goal
@@ -305,9 +364,19 @@ function GoalsTab({
                   {reviews[g.id]?.gemini_summary ? (
                     <p className="focal-goals-review-line">{reviews[g.id].gemini_summary?.split("\n")[0]}</p>
                   ) : null}
-                  <button type="button" className="focal-btn focal-goals-monthly" onClick={() => onOpenMonthly(g)}>
-                    Monthly review
-                  </button>
+                  {goalFrameworkFilled(g) ? (
+                    <p className="focal-goals-review-line">Notion framework on file</p>
+                  ) : (
+                    <p className="focal-learn-muted focal-goals-review-line">No framework pasted yet</p>
+                  )}
+                  <div className="focal-goals-card-actions">
+                    <button type="button" className="focal-btn focal-goals-monthly" onClick={() => onOpenFramework(g)}>
+                      Notion framework
+                    </button>
+                    <button type="button" className="focal-btn focal-goals-monthly" onClick={() => onOpenMonthly(g)}>
+                      Monthly review
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -323,9 +392,14 @@ function GoalsTab({
               .map((g) => (
                 <li key={g.id} className="focal-goals-card">
                   <strong className="focal-goals-card-title">{g.title}</strong>
-                  <button type="button" className="focal-btn focal-goals-monthly" onClick={() => onOpenMonthly(g)}>
-                    Monthly review
-                  </button>
+                  <div className="focal-goals-card-actions">
+                    <button type="button" className="focal-btn focal-goals-monthly" onClick={() => onOpenFramework(g)}>
+                      Notion framework
+                    </button>
+                    <button type="button" className="focal-btn focal-goals-monthly" onClick={() => onOpenMonthly(g)}>
+                      Monthly review
+                    </button>
+                  </div>
                 </li>
               ))}
           </ul>

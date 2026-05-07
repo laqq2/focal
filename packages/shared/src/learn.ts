@@ -4,7 +4,8 @@ export type EisenhowerQuadrant = "IU" | "INU" | "NIU" | "NINU";
 
 export type EodResult = "yes" | "partial" | "no";
 
-export type SessionType = "theory" | "practice";
+/** Logged work sessions (legacy DB rows may still read as theory/practice until migrated). */
+export type SessionType = "work";
 
 export type CompetencyLevel = "UI" | "CI" | "CC" | "UC";
 
@@ -109,6 +110,24 @@ export interface GoalAreaRow {
   created_at?: string;
 }
 
+/** Optional blocks aligned with your Notion goal template (paste from Notion into the app). */
+export interface GoalFramework {
+  goalSettingProcess?: string;
+  anchoredGoal?: string;
+  perfectPersonAttributes?: string;
+  perfectPersonResources?: string;
+  obstaclesRiskManagement?: string;
+  obstaclesAnticipated?: string;
+  obstaclesLimitingHabits?: string;
+  obstaclesOvercoming?: string;
+  dissections?: string;
+  evaluations?: string;
+  smallerGoalsSmarter?: string;
+  shortTermActionPlan?: string;
+  projects?: string;
+  timeline?: string;
+}
+
 export interface GoalRow {
   id: string;
   user_id: string;
@@ -118,7 +137,37 @@ export interface GoalRow {
   why: string | null;
   success_metric: string | null;
   status: GoalStatus | string;
+  /** Notion-style sections; keys match GoalFramework. */
+  framework?: GoalFramework | Record<string, unknown> | null;
   created_at?: string;
+}
+
+export type PlanPerformanceHorizon = "30d" | "14d";
+
+export interface ThirtyDayPlanRow {
+  id: string;
+  user_id: string;
+  strategic_goal_id: string | null;
+  title: string;
+  period_start: string;
+  period_end: string;
+  time_availability: string | null;
+  protect_time: string | null;
+  limiting_habits: string | null;
+  scripted_actions: string | null;
+  environmental_optimisations: string | null;
+  scheduling_notes: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PlanPerformanceGoalRow {
+  id: string;
+  plan_id: string;
+  horizon: PlanPerformanceHorizon | string;
+  title: string;
+  detail: string | null;
+  sort_index: number;
 }
 
 export interface GoalReviewRow {
@@ -185,7 +234,7 @@ export const COMPETENCY_TOOLTIPS: Record<CompetencyLevel, string> = {
 };
 
 export const MARGINAL_GAIN_BY_LEVEL: Record<CompetencyLevel, string> = {
-  UI: "Open-mindedness, less overconfidence, more experimentation, recognise issue patterns, increase theoretical knowledge",
+  UI: "Open-mindedness, less overconfidence, more experimentation, recognise issue patterns, deepen domain knowledge",
   CI: "Recognise mistakes consistently, find ways you do it wrong",
   CC: "Require less effort, increase consistency",
   UC: "Refine and personalise",

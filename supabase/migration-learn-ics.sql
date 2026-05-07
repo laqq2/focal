@@ -37,7 +37,7 @@ create table if not exists session_logs (
   session_goal text,
   goal_hit text check (goal_hit is null or goal_hit in ('yes', 'partial', 'no')),
   distractions text,
-  session_type text not null default 'practice' check (session_type in ('theory', 'practice')),
+  session_type text not null default 'work' check (session_type = 'work'),
   created_at timestamptz default now()
 );
 
