@@ -26,6 +26,7 @@ import {
   openExtensionLoginTab,
   requestSessionFromExtension,
 } from "@/lib/extension-bridge";
+import FocalLogo from "@/components/FocalLogo";
 import {
   cachedBundle,
   enqueuePending,
@@ -37,6 +38,8 @@ import {
 import { fetchUpcomingEvents, type CalendarEventItem } from "@/lib/calendar";
 import { authLoginPageUrl } from "@/lib/auth-origin";
 import { signInWithGoogleOAuth } from "@/lib/google-oauth";
+import { trackEvent, trackOncePerUser } from "@/lib/analytics";
+import { readPaywallDismissed, readPlanState, writePaywallDismissed, writePlanState, type PlanState } from "@/lib/growth";
 import { FocusOverlay, type FocusHeroTelemetry, type FocusSessionEndPayload } from "@/components/FocusOverlay";
 import { TasksDock } from "@/components/TasksDock";
 import { DashboardSettingsPanel } from "@/components/DashboardSettingsPanel";
@@ -95,6 +98,33 @@ function defaultProfile(userId: string): ProfileRow {
   };
 }
 
+type OnboardingState = {
+  intentionSet: boolean;
+  blockerEnabled: boolean;
+  firstSessionDone: boolean;
+};
+
+function readOnboarding(userId: string): OnboardingState {
+  if (typeof window === "undefined") return { intentionSet: false, blockerEnabled: false, firstSessionDone: false };
+  try {
+    const raw = localStorage.getItem(`focal_onboarding_v1:${userId}`);
+    if (!raw) return { intentionSet: false, blockerEnabled: false, firstSessionDone: false };
+    const parsed = JSON.parse(raw) as Partial<OnboardingState>;
+    return {
+      intentionSet: Boolean(parsed.intentionSet),
+      blockerEnabled: Boolean(parsed.blockerEnabled),
+      firstSessionDone: Boolean(parsed.firstSessionDone),
+    };
+  } catch {
+    return { intentionSet: false, blockerEnabled: false, firstSessionDone: false };
+  }
+}
+
+function writeOnboarding(userId: string, next: OnboardingState) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(`focal_onboarding_v1:${userId}`, JSON.stringify(next));
+}
+
 export default function DashboardClient() {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowser(), []);
@@ -127,6 +157,13 @@ export default function DashboardClient() {
   const [focusLogs, setFocusLogs] = useState<FocusLogRow[]>([]);
   const [taskLists, setTaskLists] = useState<TaskListRow[]>([]);
   const [taskRows, setTaskRows] = useState<TaskRow[]>([]);
+  const [planState, setPlanState] = useState<PlanState>("free");
+  const [paywallDismissed, setPaywallDismissed] = useState(false);
+  const [onboarding, setOnboarding] = useState<OnboardingState>({
+    intentionSet: false,
+    blockerEnabled: false,
+    firstSessionDone: false,
+  });
 
   const [calendarEvents, setCalendarEvents] = useState<CalendarEventItem[] | null>(null);
   const [calendarBusy, setCalendarBusy] = useState(false);
@@ -347,6 +384,19 @@ export default function DashboardClient() {
   }, [session]);
 
   useEffect(() => {
+    if (!session?.user) return;
+    setPlanState(readPlanState());
+    setPaywallDismissed(readPaywallDismissed());
+    const stored = readOnboarding(session.user.id);
+    setOnboarding(stored);
+    trackOncePerUser("onboarding_started", session.user.id, { source_surface: "dashboard" });
+
+    const onPlanChange = () => setPlanState(readPlanState());
+    window.addEventListener("focal_plan_changed", onPlanChange);
+    return () => window.removeEventListener("focal_plan_changed", onPlanChange);
+  }, [session?.user]);
+
+  useEffect(() => {
     if (!extensionLoginTabOpenedAt || session) return;
     setExtensionLoginRefreshHint(false);
     const t = window.setTimeout(() => setExtensionLoginRefreshHint(true), 10_000);
@@ -404,6 +454,34 @@ export default function DashboardClient() {
     });
   }, [blocked, blockerActive]);
 
+  useEffect(() => {
+    if (!session?.user) return;
+    const next: OnboardingState = {
+      intentionSet: focusLogs.some((l) => Boolean(l.intent?.trim())),
+      blockerEnabled: blockerActive || blocked.length > 0,
+      firstSessionDone: focusLogs.length > 0,
+    };
+    setOnboarding(next);
+    writeOnboarding(session.user.id, next);
+    if (next.intentionSet && next.blockerEnabled && next.firstSessionDone) {
+      trackOncePerUser("onboarding_completed", session.user.id, { source_surface: "dashboard" });
+    }
+  }, [blocked.length, blockerActive, focusLogs, session?.user]);
+
+  const prevFocusActiveRef = useRef(false);
+  useEffect(() => {
+    if (!session?.user || !focusHud) return;
+    const active = focusHud.focusSessionActive;
+    if (active && !prevFocusActiveRef.current) {
+      void trackEvent(
+        "focus_session_started",
+        { source_surface: "dashboard_focus" },
+        { supabase, session }
+      );
+    }
+    prevFocusActiveRef.current = active;
+  }, [focusHud, session, supabase]);
+
   const handleFocusSessionEnd = useCallback(
     async (payload: FocusSessionEndPayload) => {
       if (!session?.user) return;
@@ -438,6 +516,11 @@ export default function DashboardClient() {
         });
         setOfflineFlash(true);
       }
+      void trackEvent(
+        "focus_session_completed",
+        { minutes: payload.actualMinutes, source_surface: "dashboard_focus" },
+        { supabase, session }
+      );
 
       if (payload.actualMinutes > 0) {
         const nextVal = focusMinutesToday + payload.actualMinutes;
@@ -525,6 +608,9 @@ export default function DashboardClient() {
     } catch {
       /* ignore */
     }
+    if (on) {
+      void trackEvent("blocker_enabled", { source_surface: "dashboard_focus" }, { supabase, session });
+    }
   };
 
   const refreshCalendar = useCallback(
@@ -597,6 +683,13 @@ export default function DashboardClient() {
   }, [booting, session, router]);
 
   const theme: ThemeMode = profile?.theme ?? "photo";
+  const onboardingDone = onboarding.intentionSet && onboarding.blockerEnabled && onboarding.firstSessionDone;
+  const showPaywall = mainTab === "focus" && !paywallDismissed && planState === "free" && focusLogs.length >= 5;
+
+  useEffect(() => {
+    if (!showPaywall || !session?.user) return;
+    trackOncePerUser("paywall_viewed", session.user.id, { source_surface: "focus_paywall" });
+  }, [showPaywall, session?.user]);
 
   if (booting) {
     return (
@@ -633,6 +726,9 @@ export default function DashboardClient() {
         />
         <div className="focal-content" style={{ justifyContent: "center" }}>
           <div className="focal-panel focal-login-card">
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "0.85rem" }}>
+              <FocalLogo size={56} alt="" priority />
+            </div>
             <h1 style={{ margin: "0 0 0.35rem", fontSize: "1.6rem" }}>Welcome to Focal</h1>
             <p style={{ margin: "0 0 1rem", color: "rgba(255,255,255,0.7)" }}>Sign in to sync across Chrome, Safari, and the web.</p>
             <>
@@ -681,7 +777,10 @@ export default function DashboardClient() {
       </div>
       <div className="focal-content focal-obs">
         <aside className="focal-obs-sidebar">
-          <div className="focal-obs-brand">Focal</div>
+          <div className="focal-obs-brand">
+            <FocalLogo size={30} alt="" />
+            <span>Focal</span>
+          </div>
           {focusHud?.running || focusHud?.focusSessionActive ? (
             <div className="focal-obs-live-pill" aria-live="polite">
               <span className="focal-obs-live-pill-main">{focusHud.running ? "Focusing" : "Paused"}</span>
@@ -775,6 +874,30 @@ export default function DashboardClient() {
             </div>
           </div>
 
+          {!onboardingDone ? (
+            <section className="focal-growth-card" aria-label="Onboarding checklist">
+              <div className="focal-growth-card-head">
+                <h2>Get your first win</h2>
+                <span>
+                  {[onboarding.intentionSet, onboarding.blockerEnabled, onboarding.firstSessionDone].filter(Boolean).length}/3 done
+                </span>
+              </div>
+              <ul className="focal-growth-checks">
+                <li className={onboarding.intentionSet ? "done" : ""}>Set an intention in your next focus session.</li>
+                <li className={onboarding.blockerEnabled ? "done" : ""}>Enable blocker or add at least one blocked domain.</li>
+                <li className={onboarding.firstSessionDone ? "done" : ""}>Complete and save your first focus session.</li>
+              </ul>
+              <div className="focal-growth-actions">
+                <button className="focal-btn primary" type="button" onClick={() => setMainTabPersist("focus")}>
+                  Continue onboarding
+                </button>
+                <button className="focal-btn" type="button" onClick={() => setMainTabPersist("learn")}>
+                  Open Learn
+                </button>
+              </div>
+            </section>
+          ) : null}
+
           {mainTab === "learn" && session?.user ? (
             <div className="focal-obs-tab-panel focal-obs-tab-learn">
               <LearnPanel
@@ -792,6 +915,43 @@ export default function DashboardClient() {
           ) : null}
 
           <div className="focal-obs-tab-panel focal-obs-tab-focus" hidden={mainTab !== "focus"}>
+            {showPaywall ? (
+              <section className="focal-growth-card focal-growth-card-paywall" aria-label="Upgrade prompt">
+                <div className="focal-growth-card-head">
+                  <h2>Unlock Focal Pro</h2>
+                  <span>Early access offer</span>
+                </div>
+                <p className="focal-growth-copy">
+                  You have completed {focusLogs.length} sessions. Pro adds advanced reflection insights, richer blocker controls, and premium personalization.
+                </p>
+                <div className="focal-growth-actions">
+                  <button
+                    className="focal-btn primary"
+                    type="button"
+                    onClick={() => {
+                      writePlanState("trial");
+                      setPlanState("trial");
+                      writePaywallDismissed(true);
+                      setPaywallDismissed(true);
+                      void trackEvent("trial_started", { source_surface: "focus_paywall" }, { supabase, session });
+                      router.push("/settings?section=billing");
+                    }}
+                  >
+                    Start 14-day Pro trial
+                  </button>
+                  <button
+                    className="focal-btn"
+                    type="button"
+                    onClick={() => {
+                      writePaywallDismissed(true);
+                      setPaywallDismissed(true);
+                    }}
+                  >
+                    Maybe later
+                  </button>
+                </div>
+              </section>
+            ) : null}
             <FocusOverlay
               variant="inline"
               open={mainTab === "focus"}
